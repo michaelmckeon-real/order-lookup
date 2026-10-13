@@ -60,13 +60,54 @@ function logIngest(entry: {
   console.info(JSON.stringify(line));
 }
 
-export function createAzureBlobSource(env: {
-  account: string;
-  container: string;
-  name: string;
-}): BlobSource {
-  const url = `https://${env.account}.blob.core.windows.net/${env.container}/${env.name}`;
-  const client = new BlobClient(url, new DefaultAzureCredential());
+function logFeed(auth: "sas" | "entra", sasExpires: string | null): void {
+  console.info(
+    JSON.stringify({
+      event: "feed",
+      time: new Date().toISOString(),
+      auth,
+      sasExpires,
+    }),
+  );
+}
+
+function blobNameFromSasUrl(sasUrl: string): string {
+  const url = new URL(sasUrl);
+  const parts = url.pathname.split("/").filter((part) => part.length > 0);
+  const name = parts[parts.length - 1];
+  return name ? decodeURIComponent(name) : "blob";
+}
+
+export function sasExpiresIso(sasUrl: string): string | null {
+  const se = new URL(sasUrl).searchParams.get("se");
+  if (se === null || se.length === 0) {
+    return null;
+  }
+  const date = new Date(se);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return date.toISOString();
+}
+
+export function formatPollerError(error: unknown): string {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "statusCode" in error &&
+    typeof (error as { statusCode: unknown }).statusCode === "number" &&
+    "code" in error &&
+    typeof (error as { code: unknown }).code === "string"
+  ) {
+    return `${(error as { statusCode: number }).statusCode} ${(error as { code: string }).code}`;
+  }
+  if (error instanceof Error) {
+    return error.name;
+  }
+  return "Error";
+}
+
+function wrapClient(client: BlobClient): BlobSource {
   return {
     async getProperties() {
       const props = await client.getProperties();
@@ -90,26 +131,62 @@ export function createAzureBlobSource(env: {
   };
 }
 
+export function createSasBlobSource(sasUrl: string): BlobSource {
+  return wrapClient(new BlobClient(sasUrl));
+}
+
+export function createAzureBlobSource(env: {
+  account: string;
+  container: string;
+  name: string;
+}): BlobSource {
+  const url = `https://${env.account}.blob.core.windows.net/${env.container}/${env.name}`;
+  return wrapClient(new BlobClient(url, new DefaultAzureCredential()));
+}
+
 export function startBlobPoller(
   source: BlobSource | null = null,
   clock: Clock = defaultClock,
 ): { stop(): void } | null {
+  const sasUrl = process.env.ORDER_BLOB_SAS_URL?.trim() || "";
   const account = process.env.ORDER_BLOB_ACCOUNT;
   const container = process.env.ORDER_BLOB_CONTAINER;
   const name = process.env.ORDER_BLOB_NAME;
 
-  const blobSource =
-    source ??
-    (account && container && name
-      ? createAzureBlobSource({ account, container, name })
-      : null);
+  let blobSource = source;
+  let blobName = name ?? "blob";
+  let auth: "sas" | "entra" | null = null;
+  let sasExpires: string | null = null;
 
   if (blobSource === null) {
+    if (sasUrl.length > 0) {
+      blobSource = createSasBlobSource(sasUrl);
+      blobName = blobNameFromSasUrl(sasUrl);
+      auth = "sas";
+      sasExpires = sasExpiresIso(sasUrl);
+    } else if (account && container && name) {
+      blobSource = createAzureBlobSource({ account, container, name });
+      blobName = name;
+      auth = "entra";
+    }
+  } else if (sasUrl.length > 0) {
+    auth = "sas";
+    sasExpires = sasExpiresIso(sasUrl);
+    blobName = blobNameFromSasUrl(sasUrl);
+  } else if (account && container && name) {
+    auth = "entra";
+    blobName = name;
+  } else {
+    auth = "entra";
+  }
+
+  if (blobSource === null || auth === null) {
     return null;
   }
 
   const activeSource: BlobSource = blobSource;
-  const blobName = name ?? "blob";
+  logFeed(auth, sasExpires);
+
   let inFlight = false;
   let lastRefusedEtag: string | null = null;
 
@@ -170,20 +247,11 @@ export function startBlobPoller(
         asOf: asOfIso,
       });
     } catch (error) {
-      const code =
-        typeof error === "object" &&
-        error !== null &&
-        "code" in error &&
-        typeof (error as { code: unknown }).code === "string"
-          ? (error as { code: string }).code
-          : error instanceof Error
-            ? error.name
-            : "Error";
       logIngest({
         result: "error",
         orders: null,
         asOf: null,
-        error: code,
+        error: formatPollerError(error),
       });
     } finally {
       inFlight = false;

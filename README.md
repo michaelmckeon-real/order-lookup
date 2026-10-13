@@ -51,14 +51,22 @@ Matrixify publishes one CSV into Azure Blob Storage every hour. The app does not
 
 ### How the app reads it
 
-- Auth: `DefaultAzureCredential` only (managed identity on App Service; `az login` locally). The identity needs Storage Blob Data Reader on the container.
-- Env vars: `ORDER_SOURCE=snapshot`, `ORDER_BLOB_ACCOUNT`, `ORDER_BLOB_CONTAINER`, `ORDER_BLOB_NAME`, `DATA_DIR` (see `.env.example`).
+- Env vars: `ORDER_SOURCE=snapshot`, `ORDER_BLOB_ACCOUNT`, `ORDER_BLOB_CONTAINER`, `ORDER_BLOB_NAME`, `ORDER_BLOB_SAS_URL`, `DATA_DIR` (see `.env.example`).
 - The poller starts with the Node server (`src/instrumentation.ts`), checks every `ingest.pollMinutes` (10), downloads into memory, parses, and writes `DATA_DIR/snapshot.json`. The CSV is never saved to disk.
 - Orders are keyed by their digits (so `SFP#3601234` and `#3601234` share a key space by number only).
 - "Data as of" is the blob's Last modified time.
 - On App Service, Always On must be enabled so the poller keeps running.
 - If the feed breaks, upload a CSV with the same name through the portal's Storage browser.
 - After changing parsing rules, delete `DATA_DIR/snapshot.json` and restart, or wait for the next hourly file.
+
+### Feed access
+
+Two ways to read the blob:
+
+- Entra ID via `DefaultAzureCredential` (managed identity on App Service; `az login` locally). The reading identity needs Storage Blob Data Reader on the container. Set `ORDER_BLOB_ACCOUNT`, `ORDER_BLOB_CONTAINER` and `ORDER_BLOB_NAME`.
+- A read-only SAS URL scoped to the one blob, in `ORDER_BLOB_SAS_URL`. This takes precedence over the account settings.
+
+The SAS expires and must be replaced before then. When it expires, the feed stops, the log shows a 403, and the stale banner appears within 3 hours.
 
 ### Guards (refuse and keep)
 

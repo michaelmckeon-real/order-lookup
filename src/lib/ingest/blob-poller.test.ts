@@ -1,9 +1,11 @@
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { RestError } from "@azure/storage-blob";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { writeSnapshot, snapshotPath } from "@/lib/data/snapshot-store";
 import {
+  formatPollerError,
   startBlobPoller,
   type BlobSource,
   type Clock,
@@ -14,12 +16,21 @@ const originalDataDir = process.env.DATA_DIR;
 const originalAccount = process.env.ORDER_BLOB_ACCOUNT;
 const originalContainer = process.env.ORDER_BLOB_CONTAINER;
 const originalName = process.env.ORDER_BLOB_NAME;
+const originalSas = process.env.ORDER_BLOB_SAS_URL;
+
+const FAKE_SAS_URL =
+  "https://example.blob.core.windows.net/c/b.csv?sv=2024-01-01&se=2027-01-13T00%3A00%3A00Z&sp=r&sig=FAKE";
 
 afterEach(async () => {
   process.env.DATA_DIR = originalDataDir;
   process.env.ORDER_BLOB_ACCOUNT = originalAccount;
   process.env.ORDER_BLOB_CONTAINER = originalContainer;
   process.env.ORDER_BLOB_NAME = originalName;
+  if (originalSas === undefined) {
+    delete process.env.ORDER_BLOB_SAS_URL;
+  } else {
+    process.env.ORDER_BLOB_SAS_URL = originalSas;
+  }
   await Promise.all(
     tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })),
   );
@@ -69,6 +80,22 @@ function createClock(): Clock & {
   };
 }
 
+function loggedLines(info: ReturnType<typeof vi.spyOn>): string[] {
+  return info.mock.calls.map((call: unknown[]) => String(call[0]));
+}
+
+function loggedEvents(info: ReturnType<typeof vi.spyOn>): Array<{
+  event: string;
+  auth?: string;
+  sasExpires?: string | null;
+  result?: string;
+  error?: string;
+}> {
+  return loggedLines(info).map(
+    (line) => JSON.parse(line) as { event: string; auth?: string },
+  );
+}
+
 describe("startBlobPoller", () => {
   it("skips without downloading when the blob is not newer", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "order-lookup-"));
@@ -108,7 +135,9 @@ describe("startBlobPoller", () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(download).not.toHaveBeenCalled();
-    expect(info).not.toHaveBeenCalled();
+    expect(loggedEvents(info).every((entry) => entry.event === "feed")).toBe(
+      true,
+    );
     handle?.stop();
   });
 
@@ -140,7 +169,11 @@ describe("startBlobPoller", () => {
       expect(JSON.parse(text).orderCount).toBe(3);
     });
     expect(download).toHaveBeenCalledTimes(1);
-    expect(info).toHaveBeenCalled();
+    expect(
+      loggedEvents(info).some(
+        (entry) => entry.event === "ingest" && entry.result === "loaded",
+      ),
+    ).toBe(true);
     handle?.stop();
   });
 
@@ -232,7 +265,11 @@ describe("startBlobPoller", () => {
     const info = vi.spyOn(console, "info").mockImplementation(() => {});
     const handle = startBlobPoller(source, clock);
     await vi.waitFor(() => {
-      expect(info).toHaveBeenCalled();
+      expect(
+        loggedEvents(info).some(
+          (entry) => entry.event === "ingest" && entry.result === "error",
+        ),
+      ).toBe(true);
     });
     expect(await readFile(snapshotPath(dir), "utf8")).toBe(before);
     handle?.stop();
@@ -282,6 +319,89 @@ describe("startBlobPoller", () => {
     await vi.waitFor(async () => {
       await readFile(snapshotPath(dir), "utf8");
     });
+    handle?.stop();
+  });
+
+  it("logs SAS feed startup without the URL or signature", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "order-lookup-"));
+    tempDirs.push(dir);
+    process.env.DATA_DIR = dir;
+    process.env.ORDER_BLOB_SAS_URL = FAKE_SAS_URL;
+    delete process.env.ORDER_BLOB_ACCOUNT;
+    delete process.env.ORDER_BLOB_CONTAINER;
+    delete process.env.ORDER_BLOB_NAME;
+
+    const source: BlobSource = {
+      async getProperties() {
+        return {
+          lastModified: new Date("2026-10-13T11:00:00.000Z"),
+          etag: "etag",
+          contentLength: 10,
+        };
+      },
+      async download() {
+        return Buffer.from("");
+      },
+    };
+
+    const clock = createClock();
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    const handle = startBlobPoller(source, clock);
+    await Promise.resolve();
+
+    const feed = loggedEvents(info).find((entry) => entry.event === "feed");
+    expect(feed).toMatchObject({
+      event: "feed",
+      auth: "sas",
+      sasExpires: "2027-01-13T00:00:00.000Z",
+    });
+    for (const line of loggedLines(info)) {
+      expect(line).not.toContain("sig=");
+      expect(line).not.toContain(FAKE_SAS_URL);
+      expect(line).not.toContain("example.blob.core.windows.net");
+    }
+    handle?.stop();
+  });
+
+  it("logs Azure RestError status and code", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "order-lookup-"));
+    tempDirs.push(dir);
+    process.env.DATA_DIR = dir;
+    process.env.ORDER_BLOB_ACCOUNT = "acct";
+    process.env.ORDER_BLOB_CONTAINER = "cont";
+    process.env.ORDER_BLOB_NAME = "order_lookup.csv";
+
+    const source: BlobSource = {
+      async getProperties() {
+        throw new RestError("hidden", {
+          statusCode: 403,
+          code: "AuthenticationFailed",
+        });
+      },
+      async download() {
+        return Buffer.from("");
+      },
+    };
+
+    const clock = createClock();
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    const handle = startBlobPoller(source, clock);
+    await vi.waitFor(() => {
+      expect(
+        loggedEvents(info).some(
+          (entry) =>
+            entry.event === "ingest" &&
+            entry.result === "error" &&
+            entry.error === "403 AuthenticationFailed",
+        ),
+      ).toBe(true);
+    });
+    expect(formatPollerError(
+      new RestError("hidden", {
+        statusCode: 403,
+        code: "AuthenticationFailed",
+      }),
+    )).toBe("403 AuthenticationFailed");
     handle?.stop();
   });
 });

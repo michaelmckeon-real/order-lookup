@@ -15,6 +15,8 @@ import type {
 } from "@/lib/lookup/types";
 
 type Line = OrderRecord["lines"][number];
+type Fulfilment = OrderRecord["fulfillments"][number];
+type Outcome = "collected" | "delivered" | "dispatched";
 
 function orderTypeOf(
   shippingTitle: string | null,
@@ -34,17 +36,6 @@ function orderTypeOf(
   return { orderType: "Unknown", collectionStore: null };
 }
 
-function nodeKey(node: CardNode | null): string {
-  if (node === null) {
-    return "null";
-  }
-  return `${node.kind}\0${node.place}\0${node.detail ?? ""}`;
-}
-
-function groupSignature(group: CardGroup): string {
-  return `${group.status.label}\0${group.status.tone}\0${nodeKey(group.now)}\0${nodeKey(group.going)}`;
-}
-
 function listPlaces(names: string[]): string {
   if (names.length === 2) {
     return `${names[0]} and ${names[1]}`;
@@ -53,58 +44,114 @@ function listPlaces(names: string[]): string {
   return `${head} and ${names[names.length - 1]}`;
 }
 
-function mergeItems(
-  groups: CardGroup[],
-): { quantity: number; title: string; sku: string }[] {
-  const byKey = new Map<
-    string,
-    { quantity: number; title: string; sku: string }
-  >();
-  for (const group of groups) {
-    for (const item of group.items) {
-      const key = `${item.sku}\0${item.title}`;
-      const existing = byKey.get(key);
-      if (existing) {
-        existing.quantity += item.quantity;
-      } else {
-        byKey.set(key, { ...item });
-      }
-    }
+function outcomeOf(
+  fulfilment: Fulfilment,
+  orderType: OrderCard["orderType"],
+): Outcome {
+  if (orderType === "Collection") {
+    return "collected";
   }
-  return Array.from(byKey.values());
+  if (fulfilment.shipmentStatus?.toLowerCase() === "delivered") {
+    return "delivered";
+  }
+  return "dispatched";
 }
 
-function buildFulfilledGroup(
-  fulfilment: OrderRecord["fulfillments"][number],
+type AggregatedFulfilment = {
+  outcome: Outcome;
+  place: string;
+  trackingCompany: string | null;
+  latestCreatedAt: string;
+  itemsByLineId: Map<string, number>;
+};
+
+function aggregateSuccessfulFulfilments(
+  fulfillments: Fulfilment[],
   linesById: Map<string, Line>,
   orderType: OrderCard["orderType"],
-  collectionStore: string | null,
-): CardGroup | null {
-  if (fulfilment.status.toLowerCase() !== "success") {
-    return null;
+): AggregatedFulfilment[] {
+  const groups = new Map<string, AggregatedFulfilment>();
+
+  for (const fulfilment of fulfillments) {
+    if (fulfilment.status.toLowerCase() !== "success") {
+      continue;
+    }
+
+    const lineQuantities = new Map<string, number>();
+    for (const item of fulfilment.items) {
+      if (!linesById.has(item.lineId)) {
+        continue;
+      }
+      lineQuantities.set(
+        item.lineId,
+        (lineQuantities.get(item.lineId) ?? 0) + item.quantity,
+      );
+    }
+    if (lineQuantities.size === 0) {
+      continue;
+    }
+
+    const outcome = outcomeOf(fulfilment, orderType);
+    const place = displayLocation(fulfilment.location ?? "");
+    const trackingCompany = fulfilment.trackingCompany;
+    const key = `${outcome}\0${place}\0${trackingCompany ?? ""}`;
+
+    let group = groups.get(key);
+    if (!group) {
+      group = {
+        outcome,
+        place,
+        trackingCompany,
+        latestCreatedAt: fulfilment.createdAt,
+        itemsByLineId: new Map(),
+      };
+      groups.set(key, group);
+    } else if (fulfilment.createdAt > group.latestCreatedAt) {
+      group.latestCreatedAt = fulfilment.createdAt;
+    }
+
+    for (const [lineId, quantity] of lineQuantities) {
+      group.itemsByLineId.set(
+        lineId,
+        (group.itemsByLineId.get(lineId) ?? 0) + quantity,
+      );
+    }
   }
 
+  return Array.from(groups.values()).sort((a, b) =>
+    a.latestCreatedAt.localeCompare(b.latestCreatedAt),
+  );
+}
+
+function itemsFromAggregate(
+  aggregate: AggregatedFulfilment,
+  linesById: Map<string, Line>,
+): { quantity: number; title: string; sku: string }[] {
   const items: { quantity: number; title: string; sku: string }[] = [];
-  for (const item of fulfilment.items) {
-    const line = linesById.get(item.lineId);
+  for (const [lineId, quantity] of aggregate.itemsByLineId) {
+    const line = linesById.get(lineId);
     if (!line) {
       continue;
     }
     items.push({
-      quantity: item.quantity,
+      quantity,
       title: line.title,
       sku: line.sku,
     });
   }
-  if (items.length === 0) {
-    return null;
-  }
+  return items;
+}
 
-  const dateLabel = formatDateTime(fulfilment.createdAt);
-  const place = displayLocation(fulfilment.location ?? "");
+function buildFulfilledGroup(
+  aggregate: AggregatedFulfilment,
+  linesById: Map<string, Line>,
+  collectionStore: string | null,
+): CardGroup {
+  const items = itemsFromAggregate(aggregate, linesById);
+  const dateLabel = formatDateTime(aggregate.latestCreatedAt);
 
-  if (orderType === "Collection") {
-    const storeLabel = collectionStore ?? place;
+  if (aggregate.outcome === "collected") {
+    const storeLabel = collectionStore ?? aggregate.place;
     return {
       status: { label: "Collected", tone: "done" },
       now: {
@@ -117,14 +164,14 @@ function buildFulfilledGroup(
     };
   }
 
-  if (fulfilment.shipmentStatus?.toLowerCase() === "delivered") {
+  if (aggregate.outcome === "delivered") {
     return {
       status: { label: "Delivered", tone: "done" },
       now: {
         kind: "done",
         place: "Delivered",
-        detail: fulfilment.trackingCompany
-          ? `By ${fulfilment.trackingCompany}`
+        detail: aggregate.trackingCompany
+          ? `By ${aggregate.trackingCompany}`
           : null,
       },
       going: null,
@@ -132,18 +179,18 @@ function buildFulfilledGroup(
     };
   }
 
-  if (fulfilment.trackingCompany) {
+  if (aggregate.trackingCompany) {
     return {
       status: { label: "Dispatched", tone: "progress" },
       now: {
         kind: "carrier",
-        place: `With ${fulfilment.trackingCompany}`,
-        detail: `Dispatched from ${place}, ${dateLabel}`,
+        place: `With ${aggregate.trackingCompany}`,
+        detail: `Dispatched from ${aggregate.place}, ${dateLabel}`,
       },
       going: {
         kind: "customer",
         place: "Customer's address",
-        detail: `Delivery by ${fulfilment.trackingCompany}`,
+        detail: `Delivery by ${aggregate.trackingCompany}`,
       },
       items,
     };
@@ -153,7 +200,7 @@ function buildFulfilledGroup(
     status: { label: "Dispatched", tone: "progress" },
     now: {
       kind: "store",
-      place,
+      place: aggregate.place,
       detail: `Dispatched ${dateLabel}`,
     },
     going: {
@@ -184,7 +231,7 @@ function buildUnfulfilledGroup(
 
   let status: CardStatus;
   if (orderType === "Collection") {
-    status = { label: "Not ready for collection", tone: "neutral" };
+    status = { label: "Not collected yet", tone: "neutral" };
   } else if (orderType === "Delivery") {
     status = { label: "Not yet dispatched", tone: "neutral" };
   } else {
@@ -324,35 +371,14 @@ export function toCard(record: OrderRecord): OrderCard {
   const activeLines = record.lines.filter((line) => line.currentQuantity > 0);
   const linesById = new Map(activeLines.map((line) => [line.lineId, line]));
 
-  const fulfilledEntries: { createdAt: string; group: CardGroup }[] = [];
-  for (const fulfilment of record.fulfillments) {
-    const group = buildFulfilledGroup(
-      fulfilment,
-      linesById,
-      orderType,
-      collectionStore,
-    );
-    if (group) {
-      fulfilledEntries.push({ createdAt: fulfilment.createdAt, group });
-    }
-  }
-  fulfilledEntries.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-
-  const fulfilledMerged: CardGroup[] = [];
-  for (const entry of fulfilledEntries) {
-    const signature = groupSignature(entry.group);
-    const existing = fulfilledMerged.find(
-      (group) => groupSignature(group) === signature,
-    );
-    if (existing) {
-      existing.items = mergeItems([existing, entry.group]);
-    } else {
-      fulfilledMerged.push({
-        ...entry.group,
-        items: entry.group.items.map((item) => ({ ...item })),
-      });
-    }
-  }
+  const aggregates = aggregateSuccessfulFulfilments(
+    record.fulfillments,
+    linesById,
+    orderType,
+  );
+  const fulfilledMerged = aggregates.map((aggregate) =>
+    buildFulfilledGroup(aggregate, linesById, collectionStore),
+  );
 
   const unfulfilled = buildUnfulfilledGroup(
     activeLines,

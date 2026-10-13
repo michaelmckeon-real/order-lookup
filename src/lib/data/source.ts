@@ -1,4 +1,5 @@
 import { fixtureSource } from "@/lib/data/fixture-source";
+import { snapshotSource } from "@/lib/data/snapshot-source";
 import type { OrderRecord, SnapshotMeta } from "@/lib/lookup/types";
 
 export interface OrderSource {
@@ -29,7 +30,7 @@ export function getOrderSource(): OrderSource {
   }
 
   if (sourceName === "snapshot") {
-    return emptySource;
+    return snapshotSource;
   }
 
   throw new Error(

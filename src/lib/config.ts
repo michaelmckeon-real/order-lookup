@@ -21,6 +21,7 @@ type RulesConfig = {
   staleAfterHours: number;
   deliveryShippingTitles: string[];
   locationFromTag: { Delivery: boolean; Collection: boolean };
+  ingest: { pollMinutes: number; maxMegabytes: number };
 };
 
 function isNonStoreKind(value: unknown): value is NonStoreKind {
@@ -129,6 +130,16 @@ function validateRules(value: unknown): RulesConfig {
       "config/rules.json locationFromTag needs Delivery and Collection booleans",
     );
   }
+  if (typeof record.ingest !== "object" || record.ingest === null) {
+    throw new Error("config/rules.json ingest must be an object");
+  }
+  const ingest = record.ingest as Record<string, unknown>;
+  if (typeof ingest.pollMinutes !== "number") {
+    throw new Error("config/rules.json ingest.pollMinutes must be a number");
+  }
+  if (typeof ingest.maxMegabytes !== "number") {
+    throw new Error("config/rules.json ingest.maxMegabytes must be a number");
+  }
   return {
     timeZone: record.timeZone,
     windowDays: record.windowDays,
@@ -137,6 +148,10 @@ function validateRules(value: unknown): RulesConfig {
     locationFromTag: {
       Delivery: tags.Delivery,
       Collection: tags.Collection,
+    },
+    ingest: {
+      pollMinutes: ingest.pollMinutes,
+      maxMegabytes: ingest.maxMegabytes,
     },
   };
 }
@@ -150,6 +165,7 @@ export const rules = {
   staleAfterHours: rulesConfig.staleAfterHours,
   deliveryShippingTitles: rulesConfig.deliveryShippingTitles,
   locationFromTag: rulesConfig.locationFromTag,
+  ingest: rulesConfig.ingest,
 };
 
 function normKey(value: string): string {
@@ -185,8 +201,12 @@ export function matchLocation(name: string): MatchedLocation | null {
   return null;
 }
 
+export function hasDisplayName(raw: string): boolean {
+  return Object.prototype.hasOwnProperty.call(locations.displayNames, raw);
+}
+
 export function displayLocation(raw: string): string {
-  if (Object.prototype.hasOwnProperty.call(locations.displayNames, raw)) {
+  if (hasDisplayName(raw)) {
     return locations.displayNames[raw];
   }
   const key = normKey(raw);

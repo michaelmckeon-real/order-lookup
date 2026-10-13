@@ -24,16 +24,49 @@ Order Lookup is a small internal tool for Harvey Norman Ireland staff to look up
 ## Config
 
 - `config/locations.json` - store names, non-store locations (finding stock and supplier), and optional display name overrides for raw location strings.
-- `config/rules.json` - Dublin time zone, lookup window length, stale age threshold, shipping titles treated as home delivery, and whether order location tags are used to show "now" for each order type.
+- `config/rules.json` - Dublin time zone, lookup window length, stale age threshold, shipping titles treated as home delivery, whether order location tags are used to show "now" for each order type, and ingest poll settings.
 
 `locationFromTag.Delivery` is true because the router tags deliveries with the store it allocates. `locationFromTag.Collection` is false because collection tags are written at checkout, and it flips to true once a collection order that changed store shows its tag following the move.
 
 ## Scripts
 
-- `npm run dev` - start the development server
+- `npm run dev` - start the development server on this machine only (`127.0.0.1`)
 - `npm run build` - create a production build
 - `npm run lint` - run ESLint
 - `npm test` - run unit tests
+
+## Ingest
+
+Matrixify publishes one CSV into Azure Blob Storage every hour. The app does not accept uploads; it reads that blob on a timer.
+
+### Matrixify template
+
+- Sheet: Orders
+- Format: CSV
+- Filter: Created At within the last 30 days
+- Columns (required): ID, Name, Tags, Created At, Cancelled At, Line: Type, Line: ID, Line: Title, Line: SKU, Line: Quantity, Line: Current Quantity, Line: Fulfillable Quantity, Fulfillment: ID, Fulfillment: Status, Fulfillment: Created At, Fulfillment: Location, Fulfillment: Tracking Company, Fulfillment: Shipment Status
+- Custom file name: `order_lookup`
+- Upload to the storage account over SFTP into the configured container
+- Repeat every hour (overwrite the same blob)
+
+### How the app reads it
+
+- Auth: `DefaultAzureCredential` only (managed identity on App Service; `az login` locally). The identity needs Storage Blob Data Reader on the container.
+- Env vars: `ORDER_SOURCE=snapshot`, `ORDER_BLOB_ACCOUNT`, `ORDER_BLOB_CONTAINER`, `ORDER_BLOB_NAME`, `DATA_DIR` (see `.env.example`).
+- The poller starts with the Node server (`src/instrumentation.ts`), checks every `ingest.pollMinutes` (10), downloads into memory, parses, and writes `DATA_DIR/snapshot.json`. The CSV is never saved to disk.
+- "Data as of" is the blob's Last modified time.
+- On App Service, Always On must be enabled so the poller keeps running.
+- If the feed breaks, upload a CSV with the same name through the portal's Storage browser.
+
+### Guards (refuse and keep)
+
+A refusal never replaces the current snapshot:
+
+- `missing_columns` - required Matrixify columns are absent
+- `no_orders` - nothing left after the 30-day window
+- `not_newer` - blob Last modified is not later than the snapshot's asOf
+- `too_few_orders` - new order count is under half of the current snapshot
+- `too_large` - blob is over `ingest.maxMegabytes` (not downloaded)
 
 ## Local testing
 
@@ -46,10 +79,11 @@ With the app running locally:
 Optional environment variables:
 
 - `LOOKUP_BASE_URL` - base URL for `scripts/lookup.mjs` (default `http://localhost:3000`)
-- `ORDER_SOURCE` - `fixtures` or `snapshot`. Defaults to `fixtures` outside production and `snapshot` in production. Production refuses `fixtures` and returns no data. `snapshot` returns no data until CSV ingest lands.
+- `ORDER_SOURCE` - `fixtures` or `snapshot`. Defaults to `fixtures` outside production and `snapshot` in production. Production refuses `fixtures`.
 - `FIXTURE_DATA_AGE_HOURS` - age of the fixture snapshot clock (default `1`)
 - `FIXTURE_NO_DATA=1` - fixture source reports no data
+- Blob and `DATA_DIR` vars as in `.env.example` when using snapshot ingest
 
 ## Status
 
-UI on invented fixtures. Sign-in, logging and ingest arrive in later tasks.
+UI and ingest on invented fixtures and a refuse-and-keep blob poller. Sign-in and logging arrive in later tasks.

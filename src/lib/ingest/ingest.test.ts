@@ -65,8 +65,6 @@ async function seedSnapshot(
       loadedAt: asOf,
       sourceFile: "order_lookup.csv",
       orderCount,
-      minOrderNumber: 9903000,
-      maxOrderNumber: 9903000 + orderCount - 1,
       orders,
     },
     dir,

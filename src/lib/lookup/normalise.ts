@@ -26,10 +26,3 @@ export function orderKeyFromName(name: string): string | null {
   const result = normaliseOrderNumber(name);
   return result.ok ? result.key : null;
 }
-
-export function orderNumberOf(key: string): number | null {
-  if (!/^\d+$/.test(key)) {
-    return null;
-  }
-  return Number(key);
-}

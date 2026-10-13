@@ -1,9 +1,6 @@
 import { getOrderSource } from "@/lib/data/source";
 import { toSnapshotInfo } from "@/lib/lookup/format";
-import {
-  normaliseOrderNumber,
-  orderNumberOf,
-} from "@/lib/lookup/normalise";
+import { normaliseOrderNumber } from "@/lib/lookup/normalise";
 import { toCard } from "@/lib/lookup/to-card";
 import type { LookupResponse } from "@/lib/lookup/types";
 
@@ -80,23 +77,9 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const numeric = orderNumberOf(normalised.key);
-  let reason: "newer_than_data" | "older_than_window" | "no_match" =
-    "no_match";
-  if (numeric !== null && meta.maxOrderNumber !== null && numeric > meta.maxOrderNumber) {
-    reason = "newer_than_data";
-  } else if (
-    numeric !== null &&
-    meta.minOrderNumber !== null &&
-    numeric < meta.minOrderNumber
-  ) {
-    reason = "older_than_window";
-  }
-
   return jsonResponse(
     {
       status: "not_found",
-      reason,
       orderName: `#${normalised.key}`,
       snapshot,
     },

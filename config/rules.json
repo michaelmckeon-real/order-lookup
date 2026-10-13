@@ -4,6 +4,27 @@
   "staleAfterHours": 3,
   "deliveryShippingTitles": ["Standard", "Deliver to Door", "Standard Delivery"],
   "collectionTitlePrefixes": ["Pickup: "],
+  "carrierNames": {
+    "dpd-ireland": "DPD Ireland",
+    "dpd": "DPD",
+    "DPD-NL": "DPD Netherlands",
+    "dpd-de": "DPD Germany",
+    "United Parcel Service": "UPS",
+    "UPS International": "UPS",
+    "gls": "GLS",
+    "interlink-express": "Interlink Express",
+    "an-post": "An Post",
+    "parcel-force": "Parcelforce",
+    "primeline": "Primeline",
+    "latvijas-pasts": "Latvijas Pasts",
+    "superior-express": "Superior Express",
+    "fedex": "FedEx",
+    "amazon-uk-api": "Amazon",
+    "DHL Express": "DHL",
+    "postnord": "PostNord",
+    "dhlparcel-uk": "DHL Parcel UK",
+    "dsv": "DSV"
+  },
   "locationFromTag": { "Delivery": true, "Collection": false },
   "ingest": { "pollMinutes": 10, "maxMegabytes": 50 }
 }

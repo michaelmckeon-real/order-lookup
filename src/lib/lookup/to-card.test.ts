@@ -104,4 +104,59 @@ describe("toCard", () => {
       "From Galway, 10 Oct 2026, 15:22",
     );
   });
+
+  it("9901012: SFP delivery shows the full name and mapped carrier", () => {
+    const card = toCard(fixture("SFP#9901012"));
+    expect(card.orderName).toBe("SFP#9901012");
+    expect(card.groups[0].now?.place).toBe("With DPD Ireland");
+  });
+
+  it("maps and merges carrier spelling variants into one group", () => {
+    const card = toCard({
+      name: "#9901999",
+      createdAt: "2026-10-12T09:00:00+01:00",
+      cancelledAt: null,
+      locationTags: ["Swords"],
+      shippingTitle: "Standard",
+      lines: [
+        {
+          lineId: "L1",
+          title: "Item A",
+          sku: "A1",
+          quantity: 1,
+          currentQuantity: 1,
+          fulfillableQuantity: 0,
+        },
+        {
+          lineId: "L2",
+          title: "Item B",
+          sku: "B1",
+          quantity: 1,
+          currentQuantity: 1,
+          fulfillableQuantity: 0,
+        },
+      ],
+      fulfillments: [
+        {
+          status: "success",
+          createdAt: "2026-10-12T18:00:00+01:00",
+          location: "Swords",
+          trackingCompany: "dpd-ireland",
+          shipmentStatus: null,
+          items: [{ lineId: "L1", quantity: 1 }],
+        },
+        {
+          status: "success",
+          createdAt: "2026-10-12T18:01:00+01:00",
+          location: "Swords",
+          trackingCompany: "DPD Ireland",
+          shipmentStatus: null,
+          items: [{ lineId: "L2", quantity: 1 }],
+        },
+      ],
+    });
+    expect(card.groups).toHaveLength(1);
+    expect(card.groups[0].now?.place).toBe("With DPD Ireland");
+    expect(card.groups[0].items.map((item) => item.quantity)).toEqual([1, 1]);
+  });
 });

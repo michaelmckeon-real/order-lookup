@@ -50,26 +50,45 @@ describe("POST /api/lookup", () => {
     expect(result.body.status).toBe("invalid");
   });
 
-  it("classifies not_found reasons", async () => {
-    const newer = await postLookup("9901099");
-    expect(newer.status).toBe(200);
-    expect(newer.body).toMatchObject({
-      status: "not_found",
-      reason: "newer_than_data",
-    });
+  it("returns the same not_found shape for any missing number", async () => {
+    const a = await postLookup("9901099");
+    const b = await postLookup("9900500");
+    const c = await postLookup("9901009");
 
-    const older = await postLookup("9900500");
-    expect(older.status).toBe(200);
-    expect(older.body).toMatchObject({
-      status: "not_found",
-      reason: "older_than_window",
-    });
+    for (const result of [a, b, c]) {
+      expect(result.status).toBe(200);
+      expect(result.body.status).toBe("not_found");
+      if (result.body.status !== "not_found") {
+        continue;
+      }
+      expect(result.body).not.toHaveProperty("reason");
+      expect(result.body.snapshot).toBeDefined();
+    }
 
-    const miss = await postLookup("9901009");
-    expect(miss.status).toBe(200);
-    expect(miss.body).toMatchObject({
-      status: "not_found",
-      reason: "no_match",
+    if (
+      a.body.status !== "not_found" ||
+      b.body.status !== "not_found" ||
+      c.body.status !== "not_found"
+    ) {
+      return;
+    }
+
+    expect({
+      status: a.body.status,
+      snapshot: a.body.snapshot,
+    }).toEqual({
+      status: b.body.status,
+      snapshot: b.body.snapshot,
     });
+    expect({
+      status: b.body.status,
+      snapshot: b.body.snapshot,
+    }).toEqual({
+      status: c.body.status,
+      snapshot: c.body.snapshot,
+    });
+    expect(a.body.orderName).toBe("#9901099");
+    expect(b.body.orderName).toBe("#9900500");
+    expect(c.body.orderName).toBe("#9901009");
   });
 });

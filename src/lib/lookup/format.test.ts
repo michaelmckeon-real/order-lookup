@@ -14,8 +14,6 @@ describe("toSnapshotInfo", () => {
   const meta: SnapshotMeta = {
     asOf: "2026-10-12T12:00:00.000Z",
     orderCount: 9,
-    minOrderNumber: 9901001,
-    maxOrderNumber: 9901010,
   };
 
   it("is stale with a 9-hour age label", () => {

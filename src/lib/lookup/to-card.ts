@@ -1,4 +1,5 @@
 import {
+  displayCarrier,
   displayLocation,
   isDeliveryTitle,
   matchCollectionStore,
@@ -95,7 +96,7 @@ function aggregateSuccessfulFulfilments(
 
     const outcome = outcomeOf(fulfilment, orderType);
     const place = displayLocation(fulfilment.location ?? "");
-    const trackingCompany = fulfilment.trackingCompany;
+    const trackingCompany = displayCarrier(fulfilment.trackingCompany);
     const key = `${outcome}\0${place}\0${trackingCompany ?? ""}`;
 
     let group = groups.get(key);

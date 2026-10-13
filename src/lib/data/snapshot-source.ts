@@ -55,8 +55,6 @@ export const snapshotSource: OrderSource = {
     return {
       asOf: snapshot.asOf,
       orderCount: snapshot.orderCount,
-      minOrderNumber: snapshot.minOrderNumber,
-      maxOrderNumber: snapshot.maxOrderNumber,
     };
   },
 

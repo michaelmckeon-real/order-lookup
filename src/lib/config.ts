@@ -21,6 +21,7 @@ type RulesConfig = {
   staleAfterHours: number;
   deliveryShippingTitles: string[];
   collectionTitlePrefixes: string[];
+  carrierNames: Record<string, string>;
   locationFromTag: { Delivery: boolean; Collection: boolean };
   ingest: { pollMinutes: number; maxMegabytes: number };
 };
@@ -125,6 +126,22 @@ function validateRules(value: unknown): RulesConfig {
     );
   }
   if (
+    typeof record.carrierNames !== "object" ||
+    record.carrierNames === null ||
+    Array.isArray(record.carrierNames)
+  ) {
+    throw new Error("config/rules.json carrierNames must be an object");
+  }
+  const carrierNames: Record<string, string> = {};
+  for (const [key, mapped] of Object.entries(record.carrierNames)) {
+    if (typeof mapped !== "string") {
+      throw new Error(
+        `config/rules.json carrierNames["${key}"] must be a string`,
+      );
+    }
+    carrierNames[key] = mapped;
+  }
+  if (
     typeof record.locationFromTag !== "object" ||
     record.locationFromTag === null
   ) {
@@ -155,6 +172,7 @@ function validateRules(value: unknown): RulesConfig {
     staleAfterHours: record.staleAfterHours,
     deliveryShippingTitles: record.deliveryShippingTitles,
     collectionTitlePrefixes: record.collectionTitlePrefixes,
+    carrierNames,
     locationFromTag: {
       Delivery: tags.Delivery,
       Collection: tags.Collection,
@@ -175,6 +193,7 @@ export const rules = {
   staleAfterHours: rulesConfig.staleAfterHours,
   deliveryShippingTitles: rulesConfig.deliveryShippingTitles,
   collectionTitlePrefixes: rulesConfig.collectionTitlePrefixes,
+  carrierNames: rulesConfig.carrierNames,
   locationFromTag: rulesConfig.locationFromTag,
   ingest: rulesConfig.ingest,
 };
@@ -265,4 +284,21 @@ export function isDeliveryTitle(title: string): boolean {
   return rulesConfig.deliveryShippingTitles.some(
     (item) => normKey(item) === key,
   );
+}
+
+export function displayCarrier(raw: string | null): string | null {
+  if (raw === null) {
+    return null;
+  }
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+  const key = Object.keys(rulesConfig.carrierNames).find(
+    (name) => normKey(name) === normKey(trimmed),
+  );
+  if (key) {
+    return rulesConfig.carrierNames[key];
+  }
+  return trimmed;
 }

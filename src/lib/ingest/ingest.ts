@@ -1,4 +1,3 @@
-import { orderNumberOf } from "@/lib/lookup/normalise";
 import {
   readSnapshot,
   writeSnapshot,
@@ -47,20 +46,8 @@ export async function ingestExport(input: {
   }
 
   const orders: SnapshotFile["orders"] = {};
-  let minOrderNumber: number | null = null;
-  let maxOrderNumber: number | null = null;
   for (const [key, record] of parsed.records) {
     orders[key] = record;
-    const numeric = orderNumberOf(key);
-    if (numeric === null) {
-      continue;
-    }
-    if (minOrderNumber === null || numeric < minOrderNumber) {
-      minOrderNumber = numeric;
-    }
-    if (maxOrderNumber === null || numeric > maxOrderNumber) {
-      maxOrderNumber = numeric;
-    }
   }
 
   const snapshot: SnapshotFile = {
@@ -69,8 +56,6 @@ export async function ingestExport(input: {
     loadedAt: new Date().toISOString(),
     sourceFile: input.sourceFile,
     orderCount: parsed.report.orderCount,
-    minOrderNumber,
-    maxOrderNumber,
     orders,
   };
 

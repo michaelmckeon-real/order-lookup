@@ -18,7 +18,6 @@ type ResultState =
   | { kind: "found"; card: OrderCard; snapshot: SnapshotInfo }
   | {
       kind: "not_found";
-      reason: "newer_than_data" | "older_than_window" | "no_match";
       orderName: string;
       snapshot: SnapshotInfo;
     };
@@ -174,7 +173,6 @@ export function OrderLookup() {
       } else {
         setResult({
           kind: "not_found",
-          reason: body.reason,
           orderName: body.orderName,
           snapshot: body.snapshot,
         });
@@ -257,45 +255,17 @@ function MissPanel({
 }: {
   result: Extract<ResultState, { kind: "not_found" }>;
 }) {
-  const name = (
-    <span className="font-mono">{result.orderName}</span>
-  );
-
-  if (result.reason === "no_match") {
-    return (
-      <InfoPanel
-        icon={SearchX}
-        title={
-          <>
-            No order matches {name} in the last {result.snapshot.windowDays}{" "}
-            days.
-          </>
-        }
-        body="Check the number with the customer."
-      />
-    );
-  }
-
-  if (result.reason === "newer_than_data") {
-    return (
-      <InfoPanel
-        icon={SearchX}
-        title={<>{name} is newer than the latest data.</>}
-        body={`Data runs to ${result.snapshot.asOfLabel}. It will show after the next update.`}
-      />
-    );
-  }
-
   return (
     <InfoPanel
       icon={SearchX}
       title={
         <>
-          {name} is older than {result.snapshot.windowDays} days, so it
-          isn&apos;t held here.
+          No order matches{" "}
+          <span className="font-mono">{result.orderName}</span> in the last{" "}
+          {result.snapshot.windowDays} days.
         </>
       }
-      body="Check the number with the customer."
+      body="Orders placed in the last couple of hours may not have loaded yet. Check the number with the customer."
     />
   );
 }

@@ -25,8 +25,6 @@ export type OrderRecord = {
 export type SnapshotMeta = {
   asOf: string;
   orderCount: number;
-  minOrderNumber: number | null;
-  maxOrderNumber: number | null;
 };
 
 export type Tone = "neutral" | "progress" | "done" | "cancelled";
@@ -76,7 +74,6 @@ export type LookupResponse =
   | { status: "found"; card: OrderCard; snapshot: SnapshotInfo }
   | {
       status: "not_found";
-      reason: "newer_than_data" | "older_than_window" | "no_match";
       orderName: string;
       snapshot: SnapshotInfo;
     }

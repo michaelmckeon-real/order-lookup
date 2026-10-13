@@ -8,8 +8,6 @@ export type SnapshotFile = {
   loadedAt: string;
   sourceFile: string;
   orderCount: number;
-  minOrderNumber: number | null;
-  maxOrderNumber: number | null;
   orders: Record<string, OrderRecord>;
 };
 
@@ -26,7 +24,18 @@ export async function readSnapshot(
 ): Promise<SnapshotFile | null> {
   try {
     const text = await readFile(snapshotPath(dir), "utf8");
-    return JSON.parse(text) as SnapshotFile;
+    const parsed = JSON.parse(text) as SnapshotFile & {
+      minOrderNumber?: number | null;
+      maxOrderNumber?: number | null;
+    };
+    return {
+      version: 1,
+      asOf: parsed.asOf,
+      loadedAt: parsed.loadedAt,
+      sourceFile: parsed.sourceFile,
+      orderCount: parsed.orderCount,
+      orders: parsed.orders,
+    };
   } catch (error) {
     if (
       typeof error === "object" &&

@@ -30,8 +30,6 @@ export const fixtureSource: OrderSource = {
     return {
       asOf: fixtureAsOf(new Date()),
       orderCount: 10,
-      minOrderNumber: 9901001,
-      maxOrderNumber: 9901012,
     };
   },
 

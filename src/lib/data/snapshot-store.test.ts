@@ -1,9 +1,10 @@
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   readSnapshot,
+  snapshotPath,
   writeSnapshot,
   type SnapshotFile,
 } from "@/lib/data/snapshot-store";
@@ -27,8 +28,6 @@ describe("snapshot-store", () => {
       loadedAt: "2026-10-13T12:05:00.000Z",
       sourceFile: "order_lookup.csv",
       orderCount: 1,
-      minOrderNumber: 9902001,
-      maxOrderNumber: 9902001,
       orders: {
         "9902001": {
           name: "#9902001",
@@ -48,5 +47,33 @@ describe("snapshot-store", () => {
 
     const names = await readdir(dir);
     expect(names).toEqual(["snapshot.json"]);
+  });
+
+  it("reads an older snapshot that still has min and max order numbers", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "order-lookup-"));
+    tempDirs.push(dir);
+    await writeFile(
+      snapshotPath(dir),
+      JSON.stringify({
+        version: 1,
+        asOf: "2026-10-13T12:00:00.000Z",
+        loadedAt: "2026-10-13T12:05:00.000Z",
+        sourceFile: "order_lookup.csv",
+        orderCount: 1,
+        minOrderNumber: 9902001,
+        maxOrderNumber: 9902001,
+        orders: {},
+      }),
+      "utf8",
+    );
+    const read = await readSnapshot(dir);
+    expect(read).toEqual({
+      version: 1,
+      asOf: "2026-10-13T12:00:00.000Z",
+      loadedAt: "2026-10-13T12:05:00.000Z",
+      sourceFile: "order_lookup.csv",
+      orderCount: 1,
+      orders: {},
+    });
   });
 });

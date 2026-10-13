@@ -241,4 +241,31 @@ export const fixtureOrders: OrderRecord[] = [
       },
     ],
   },
+  {
+    name: "SFP#9901012",
+    createdAt: "2026-10-12T14:30:00+01:00",
+    cancelledAt: null,
+    locationTags: ["Swords"],
+    shippingTitle: "Deliver to Door",
+    lines: [
+      {
+        lineId: "L1",
+        title: "Bosch Series 4 Dishwasher | Silver",
+        sku: "SMS4HTI45G",
+        quantity: 1,
+        currentQuantity: 1,
+        fulfillableQuantity: 0,
+      },
+    ],
+    fulfillments: [
+      {
+        status: "success",
+        createdAt: "2026-10-12T19:05:00+01:00",
+        location: "Swords",
+        trackingCompany: "dpd-ireland",
+        shipmentStatus: null,
+        items: [{ lineId: "L1", quantity: 1 }],
+      },
+    ],
+  },
 ];

@@ -1,6 +1,7 @@
 import {
   displayLocation,
   isDeliveryTitle,
+  matchCollectionStore,
   matchLocation,
   matchStore,
   rules,
@@ -25,7 +26,8 @@ function orderTypeOf(
   collectionStore: string | null;
 } {
   if (shippingTitle !== null) {
-    const store = matchStore(shippingTitle);
+    const store =
+      matchStore(shippingTitle) ?? matchCollectionStore(shippingTitle);
     if (store) {
       return { orderType: "Collection", collectionStore: store };
     }

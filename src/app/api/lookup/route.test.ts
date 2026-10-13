@@ -51,7 +51,7 @@ describe("POST /api/lookup", () => {
   });
 
   it("classifies not_found reasons", async () => {
-    const newer = await postLookup("9901011");
+    const newer = await postLookup("9901099");
     expect(newer.status).toBe(200);
     expect(newer.body).toMatchObject({
       status: "not_found",

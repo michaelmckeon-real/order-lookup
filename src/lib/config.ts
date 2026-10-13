@@ -20,6 +20,7 @@ type RulesConfig = {
   windowDays: number;
   staleAfterHours: number;
   deliveryShippingTitles: string[];
+  collectionTitlePrefixes: string[];
   locationFromTag: { Delivery: boolean; Collection: boolean };
   ingest: { pollMinutes: number; maxMegabytes: number };
 };
@@ -116,6 +117,14 @@ function validateRules(value: unknown): RulesConfig {
     );
   }
   if (
+    !Array.isArray(record.collectionTitlePrefixes) ||
+    !record.collectionTitlePrefixes.every((item) => typeof item === "string")
+  ) {
+    throw new Error(
+      "config/rules.json collectionTitlePrefixes must be a string array",
+    );
+  }
+  if (
     typeof record.locationFromTag !== "object" ||
     record.locationFromTag === null
   ) {
@@ -145,6 +154,7 @@ function validateRules(value: unknown): RulesConfig {
     windowDays: record.windowDays,
     staleAfterHours: record.staleAfterHours,
     deliveryShippingTitles: record.deliveryShippingTitles,
+    collectionTitlePrefixes: record.collectionTitlePrefixes,
     locationFromTag: {
       Delivery: tags.Delivery,
       Collection: tags.Collection,
@@ -164,6 +174,7 @@ export const rules = {
   windowDays: rulesConfig.windowDays,
   staleAfterHours: rulesConfig.staleAfterHours,
   deliveryShippingTitles: rulesConfig.deliveryShippingTitles,
+  collectionTitlePrefixes: rulesConfig.collectionTitlePrefixes,
   locationFromTag: rulesConfig.locationFromTag,
   ingest: rulesConfig.ingest,
 };
@@ -223,6 +234,27 @@ export function matchStore(title: string): string | null {
     return null;
   }
   return locations.stores.find((item) => normKey(item) === key) ?? null;
+}
+
+export function matchCollectionStore(title: string): string | null {
+  const trimmed = title.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+  const lower = trimmed.toLowerCase();
+  for (const prefix of rulesConfig.collectionTitlePrefixes) {
+    const prefixLower = prefix.toLowerCase();
+    if (lower.startsWith(prefixLower)) {
+      return matchStore(trimmed.slice(prefixLower.length));
+    }
+  }
+  return null;
+}
+
+export function isCollectionTitle(title: string): boolean {
+  return (
+    matchStore(title) !== null || matchCollectionStore(title) !== null
+  );
 }
 
 export function isDeliveryTitle(title: string): boolean {

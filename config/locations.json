@@ -9,5 +9,8 @@
     "Shop location": { "kind": "finding_stock", "label": "Finding stock", "detail": "Being allocated to a store" },
     "Dropship POS": { "kind": "supplier", "label": "With the supplier", "detail": "Ships direct to the customer" }
   },
-  "displayNames": {}
+  "displayNames": {
+    "GiftCards Online": "Gift cards online"
+  }
 }
+

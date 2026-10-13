@@ -2,19 +2,29 @@ export type NormaliseResult =
   | { ok: true; key: string }
   | { ok: false; reason: "empty" | "malformed" };
 
-export function normaliseOrderNumber(input: string): NormaliseResult {
+function digitsAfterHash(input: string): string {
   let value = input.trim();
-  if (value.startsWith("#")) {
-    value = value.slice(1);
+  const hash = value.lastIndexOf("#");
+  if (hash >= 0) {
+    value = value.slice(hash + 1);
   }
-  value = value.replace(/\s+/g, "").toUpperCase();
+  return value.replace(/\s+/g, "");
+}
+
+export function normaliseOrderNumber(input: string): NormaliseResult {
+  const value = digitsAfterHash(input);
   if (value.length === 0) {
     return { ok: false, reason: "empty" };
   }
-  if (!/^[A-Z0-9-]{1,20}$/.test(value)) {
+  if (!/^\d{1,12}$/.test(value)) {
     return { ok: false, reason: "malformed" };
   }
   return { ok: true, key: value };
+}
+
+export function orderKeyFromName(name: string): string | null {
+  const result = normaliseOrderNumber(name);
+  return result.ok ? result.key : null;
 }
 
 export function orderNumberOf(key: string): number | null {

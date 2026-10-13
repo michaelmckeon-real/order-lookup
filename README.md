@@ -43,7 +43,7 @@ Matrixify publishes one CSV into Azure Blob Storage every hour. The app does not
 
 - Sheet: Orders
 - Format: CSV
-- Filter: Created At within the last 30 days
+- Filter: Created At, relative date, Last 720 hours. "Last 30 days" counts only full days, stops at midnight and misses today.
 - Columns (required): ID, Name, Tags, Created At, Cancelled At, Line: Type, Line: ID, Line: Title, Line: SKU, Line: Quantity, Line: Current Quantity, Line: Fulfillable Quantity, Fulfillment: ID, Fulfillment: Status, Fulfillment: Created At, Fulfillment: Location, Fulfillment: Tracking Company, Fulfillment: Shipment Status
 - Custom file name: `order_lookup`
 - Upload to the storage account over SFTP into the configured container
@@ -54,9 +54,11 @@ Matrixify publishes one CSV into Azure Blob Storage every hour. The app does not
 - Auth: `DefaultAzureCredential` only (managed identity on App Service; `az login` locally). The identity needs Storage Blob Data Reader on the container.
 - Env vars: `ORDER_SOURCE=snapshot`, `ORDER_BLOB_ACCOUNT`, `ORDER_BLOB_CONTAINER`, `ORDER_BLOB_NAME`, `DATA_DIR` (see `.env.example`).
 - The poller starts with the Node server (`src/instrumentation.ts`), checks every `ingest.pollMinutes` (10), downloads into memory, parses, and writes `DATA_DIR/snapshot.json`. The CSV is never saved to disk.
+- Orders are keyed by their digits (so `SFP#3601234` and `#3601234` share a key space by number only).
 - "Data as of" is the blob's Last modified time.
 - On App Service, Always On must be enabled so the poller keeps running.
 - If the feed breaks, upload a CSV with the same name through the portal's Storage browser.
+- After changing parsing rules, delete `DATA_DIR/snapshot.json` and restart, or wait for the next hourly file.
 
 ### Guards (refuse and keep)
 

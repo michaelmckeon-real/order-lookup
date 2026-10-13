@@ -1,12 +1,12 @@
 import { parse } from "csv-parse/sync";
 import {
   hasDisplayName,
+  isCollectionTitle,
   isDeliveryTitle,
   matchLocation,
-  matchStore,
   rules,
 } from "@/lib/config";
-import { normaliseOrderNumber } from "@/lib/lookup/normalise";
+import { orderKeyFromName } from "@/lib/lookup/normalise";
 import type { OrderRecord } from "@/lib/lookup/types";
 
 const REQUIRED_HEADERS = [
@@ -34,6 +34,7 @@ export type ParseReport = {
   orderCount: number;
   droppedOutsideWindow: number;
   skippedBadName: number;
+  collidingNames: number;
   unknownShippingTitles: string[];
   unknownLocations: string[];
 };
@@ -213,19 +214,32 @@ export function parseExport(
   const windowMs = rules.windowDays * 24 * 60 * 60 * 1000;
   const cutoffMs = asOfMs - windowMs;
 
-  const records = new Map<string, OrderRecord>();
-  let droppedOutsideWindow = 0;
+  const keyed = new Map<string, OrderDraft[]>();
   let skippedBadName = 0;
-  const unknownShippingTitles = new Set<string>();
-  const unknownLocations = new Set<string>();
-
   for (const draft of drafts.values()) {
-    const normalised = normaliseOrderNumber(draft.name);
-    if (!normalised.ok) {
+    const key = orderKeyFromName(draft.name);
+    if (key === null) {
       skippedBadName += 1;
       continue;
     }
+    const list = keyed.get(key) ?? [];
+    list.push(draft);
+    keyed.set(key, list);
+  }
 
+  const records = new Map<string, OrderRecord>();
+  let droppedOutsideWindow = 0;
+  let collidingNames = 0;
+  const unknownShippingTitles = new Set<string>();
+  const unknownLocations = new Set<string>();
+
+  for (const [key, list] of keyed) {
+    if (list.length > 1) {
+      collidingNames += list.length;
+      continue;
+    }
+
+    const draft = list[0];
     const createdMs = new Date(draft.createdAt).getTime();
     if (createdMs < cutoffMs) {
       droppedOutsideWindow += 1;
@@ -234,7 +248,7 @@ export function parseExport(
 
     if (draft.shippingTitle !== null) {
       if (
-        matchStore(draft.shippingTitle) === null &&
+        !isCollectionTitle(draft.shippingTitle) &&
         !isDeliveryTitle(draft.shippingTitle)
       ) {
         unknownShippingTitles.add(draft.shippingTitle);
@@ -251,8 +265,8 @@ export function parseExport(
       }
     }
 
-    records.set(normalised.key, {
-      name: draft.name.startsWith("#") ? draft.name : `#${normalised.key}`,
+    records.set(key, {
+      name: draft.name,
       createdAt: draft.createdAt,
       cancelledAt: draft.cancelledAt,
       locationTags: parseTags(draft.tagsRaw),
@@ -276,6 +290,7 @@ export function parseExport(
       orderCount: records.size,
       droppedOutsideWindow,
       skippedBadName,
+      collidingNames,
       unknownShippingTitles: Array.from(unknownShippingTitles).sort(),
       unknownLocations: Array.from(unknownLocations).sort(),
     },

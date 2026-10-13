@@ -1,0 +1,13 @@
+{
+  "stores": [
+    "Blanchardstown", "Carrickmines", "Castlebar", "Drogheda", "Fonthill", "Galway",
+    "Kinsale Road Cork", "Limerick", "Little Island Cork", "Naas", "Rathfarnham",
+    "Sligo", "Swords", "Tallaght", "Tralee", "Waterford"
+  ],
+  "nonStoreLocations": {
+    "Unassigned Store": { "kind": "finding_stock", "label": "Finding stock", "detail": "Being allocated to a store" },
+    "Shop location": { "kind": "finding_stock", "label": "Finding stock", "detail": "Being allocated to a store" },
+    "Dropship POS": { "kind": "supplier", "label": "With the supplier", "detail": "Ships direct to the customer" }
+  },
+  "displayNames": {}
+}

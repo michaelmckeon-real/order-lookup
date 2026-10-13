@@ -1,0 +1,7 @@
+{
+  "timeZone": "Europe/Dublin",
+  "windowDays": 30,
+  "staleAfterHours": 6,
+  "deliveryShippingTitles": ["Standard"],
+  "locationFromTag": { "Delivery": true, "Collection": false }
+}

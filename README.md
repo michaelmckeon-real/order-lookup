@@ -33,6 +33,7 @@ Order Lookup is a small internal tool for Harvey Norman Ireland staff to look up
 - `npm run dev` - start the development server
 - `npm run build` - create a production build
 - `npm run lint` - run ESLint
+- `npm test` - run unit tests
 
 ## Local testing
 
@@ -51,4 +52,4 @@ Optional environment variables:
 
 ## Status
 
-Lookup and status APIs run on invented fixtures. UI wiring, sign-in, logging and CSV ingest arrive in later tasks.
+UI on invented fixtures. Sign-in, logging and ingest arrive in later tasks.

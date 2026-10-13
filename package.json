@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev -H 127.0.0.1",
     "build": "next build",
+    "build:standalone": "next build && node scripts/prepare-standalone.mjs",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run"

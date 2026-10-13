@@ -32,6 +32,7 @@ Order Lookup is a small internal tool for Harvey Norman Ireland staff to look up
 
 - `npm run dev` - start the development server on this machine only (`127.0.0.1`)
 - `npm run build` - create a production build
+- `npm run build:standalone` - production build, then copy static files into the standalone folder
 - `npm run lint` - run ESLint
 - `npm test` - run unit tests
 
@@ -93,6 +94,15 @@ Optional environment variables:
 - `FIXTURE_DATA_AGE_HOURS` - age of the fixture snapshot clock (default `1`)
 - `FIXTURE_NO_DATA=1` - fixture source reports no data
 - Blob and `DATA_DIR` vars as in `.env.example` when using snapshot ingest
+
+## Deploy
+
+- App Service settings: `ORDER_SOURCE=snapshot`, `ORDER_BLOB_SAS_URL`, `DATA_DIR=/home/data`, `HOSTNAME=0.0.0.0`.
+- Always On.
+- Startup command: `node server.js`.
+- Health check path `/api/health`.
+- Application logs on File System with 30-day retention.
+- Access restrictions before any real data.
 
 ## Status
 

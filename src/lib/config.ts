@@ -24,6 +24,7 @@ type RulesConfig = {
   carrierNames: Record<string, string>;
   locationFromTag: { Delivery: boolean; Collection: boolean };
   ingest: { pollMinutes: number; maxMegabytes: number };
+  rateLimit: { max: number; windowMinutes: number };
 };
 
 function isNonStoreKind(value: unknown): value is NonStoreKind {
@@ -166,6 +167,18 @@ function validateRules(value: unknown): RulesConfig {
   if (typeof ingest.maxMegabytes !== "number") {
     throw new Error("config/rules.json ingest.maxMegabytes must be a number");
   }
+  if (typeof record.rateLimit !== "object" || record.rateLimit === null) {
+    throw new Error("config/rules.json rateLimit must be an object");
+  }
+  const rateLimit = record.rateLimit as Record<string, unknown>;
+  if (typeof rateLimit.max !== "number") {
+    throw new Error("config/rules.json rateLimit.max must be a number");
+  }
+  if (typeof rateLimit.windowMinutes !== "number") {
+    throw new Error(
+      "config/rules.json rateLimit.windowMinutes must be a number",
+    );
+  }
   return {
     timeZone: record.timeZone,
     windowDays: record.windowDays,
@@ -180,6 +193,10 @@ function validateRules(value: unknown): RulesConfig {
     ingest: {
       pollMinutes: ingest.pollMinutes,
       maxMegabytes: ingest.maxMegabytes,
+    },
+    rateLimit: {
+      max: rateLimit.max,
+      windowMinutes: rateLimit.windowMinutes,
     },
   };
 }
@@ -196,6 +213,7 @@ export const rules = {
   carrierNames: rulesConfig.carrierNames,
   locationFromTag: rulesConfig.locationFromTag,
   ingest: rulesConfig.ingest,
+  rateLimit: rulesConfig.rateLimit,
 };
 
 function normKey(value: string): string {

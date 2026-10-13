@@ -78,7 +78,8 @@ export type LookupResponse =
       snapshot: SnapshotInfo;
     }
   | { status: "no_data" }
-  | { status: "invalid"; message: string };
+  | { status: "invalid"; message: string }
+  | { status: "rate_limited"; retryAfterSeconds: number };
 
 export type StatusResponse =
   | { status: "ok"; snapshot: SnapshotInfo }

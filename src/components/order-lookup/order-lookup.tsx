@@ -26,6 +26,14 @@ function isCoarsePointer(): boolean {
   return window.matchMedia("(pointer: coarse)").matches;
 }
 
+function rateLimitMessage(retryAfterSeconds: number): string {
+  const minutes = Math.ceil(retryAfterSeconds / 60);
+  if (minutes <= 1) {
+    return "Too many searches in a short time. Try again in a minute.";
+  }
+  return `Too many searches in a short time. Try again in ${minutes} minutes.`;
+}
+
 function applyPostResponseFocus(input: HTMLInputElement | null) {
   if (!input) {
     return;
@@ -158,6 +166,12 @@ export function OrderLookup() {
         setNoData(true);
         setSnapshot(null);
         setResult(null);
+        applyPostResponseFocus(inputRef.current);
+        return;
+      }
+
+      if (body.status === "rate_limited") {
+        setError(rateLimitMessage(body.retryAfterSeconds));
         applyPostResponseFocus(inputRef.current);
         return;
       }

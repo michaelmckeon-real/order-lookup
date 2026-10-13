@@ -26,5 +26,6 @@
     "dsv": "DSV"
   },
   "locationFromTag": { "Delivery": true, "Collection": false },
-  "ingest": { "pollMinutes": 10, "maxMegabytes": 50 }
+  "ingest": { "pollMinutes": 10, "maxMegabytes": 50 },
+  "rateLimit": { "max": 300, "windowMinutes": 5 }
 }

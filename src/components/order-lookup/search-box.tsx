@@ -1,6 +1,6 @@
 "use client";
 
-import type { KeyboardEvent, RefObject } from "react";
+import type { RefObject } from "react";
 import { X } from "lucide-react";
 import { TypingPlaceholder } from "@/components/order-lookup/typing-placeholder";
 import { Button } from "@/components/ui/button";
@@ -26,20 +26,8 @@ export function SearchBox({
   onClear: () => void;
   inputRef: RefObject<HTMLInputElement | null>;
 }) {
-  function handleEscape(event: KeyboardEvent) {
-    if (event.key !== "Escape") {
-      return;
-    }
-    event.preventDefault();
-    onClear();
-  }
-
   return (
-    <div
-      className="flex flex-col gap-2"
-      aria-busy={searching || undefined}
-      onKeyDown={handleEscape}
-    >
+    <div className="flex flex-col gap-2" aria-busy={searching || undefined}>
       <Label htmlFor="order-number">Order number</Label>
       <div className="flex gap-2">
         <div className="relative min-w-0 flex-1">
@@ -71,7 +59,6 @@ export function SearchBox({
                 event.preventDefault();
                 onSubmit();
               }
-              handleEscape(event);
             }}
             onFocus={(event) => {
               if (

@@ -96,6 +96,29 @@ export function OrderLookup() {
     });
   }
 
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented || event.isComposing) {
+        return;
+      }
+      if (event.key !== "Escape") {
+        return;
+      }
+      const hasSomethingToClear =
+        query.length > 0 || error !== null || result !== null;
+      if (!hasSomethingToClear) {
+        return;
+      }
+      event.preventDefault();
+      clearAll();
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [query, error, result]);
+
   async function submit() {
     if (noData || searching) {
       return;

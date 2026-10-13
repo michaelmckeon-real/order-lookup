@@ -24,7 +24,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en-IE"
       className={`${geistSans.variable} ${geistMono.variable}`}
     >
-      <body className="font-sans antialiased bg-background text-foreground">
+      {/* browser extensions such as ColorZilla add attributes to body before hydration */}
+      <body
+        className="font-sans antialiased bg-background text-foreground"
+        suppressHydrationWarning
+      >
         {children}
       </body>
     </html>

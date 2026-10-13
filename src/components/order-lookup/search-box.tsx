@@ -1,6 +1,6 @@
 "use client";
 
-import type { RefObject } from "react";
+import type { KeyboardEvent, RefObject } from "react";
 import { X } from "lucide-react";
 import { TypingPlaceholder } from "@/components/order-lookup/typing-placeholder";
 import { Button } from "@/components/ui/button";
@@ -26,8 +26,20 @@ export function SearchBox({
   onClear: () => void;
   inputRef: RefObject<HTMLInputElement | null>;
 }) {
+  function handleEscape(event: KeyboardEvent) {
+    if (event.key !== "Escape") {
+      return;
+    }
+    event.preventDefault();
+    onClear();
+  }
+
   return (
-    <div className="flex flex-col gap-2" aria-busy={searching || undefined}>
+    <div
+      className="flex flex-col gap-2"
+      aria-busy={searching || undefined}
+      onKeyDown={handleEscape}
+    >
       <Label htmlFor="order-number">Order number</Label>
       <div className="flex gap-2">
         <div className="relative min-w-0 flex-1">
@@ -59,10 +71,7 @@ export function SearchBox({
                 event.preventDefault();
                 onSubmit();
               }
-              if (event.key === "Escape") {
-                event.preventDefault();
-                onClear();
-              }
+              handleEscape(event);
             }}
             onFocus={(event) => {
               if (
@@ -72,7 +81,7 @@ export function SearchBox({
                 event.currentTarget.select();
               }
             }}
-            className="h-[52px] bg-card pl-[calc(14px_+_1ch)] font-mono text-lg font-medium pr-12"
+            className="h-[52px] bg-card pl-[calc(14px_+_1ch)] pr-12 font-mono text-lg font-medium md:text-lg"
           />
           {value.length > 0 && !disabled ? (
             <Button
@@ -99,7 +108,7 @@ export function SearchBox({
       <p className="text-[13.5px] text-muted-foreground">
         Use the full number from the customer&apos;s order confirmation email.
       </p>
-      <p aria-live="polite" className="text-sm text-destructive min-h-[1.25rem]">
+      <p aria-live="polite" className="min-h-[1.25rem] text-sm text-destructive">
         {error}
       </p>
     </div>

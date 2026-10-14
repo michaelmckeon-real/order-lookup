@@ -64,6 +64,7 @@ export type OrderCard = {
 };
 
 export type SnapshotInfo = {
+  asOf: string;
   asOfLabel: string;
   ageLabel: string;
   isStale: boolean;

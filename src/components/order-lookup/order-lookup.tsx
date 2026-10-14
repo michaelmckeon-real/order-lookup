@@ -6,6 +6,7 @@ import { InfoPanel } from "@/components/order-lookup/info-panel";
 import { OrderCardView } from "@/components/order-lookup/order-card";
 import { SearchBox } from "@/components/order-lookup/search-box";
 import { StaleBanner } from "@/components/order-lookup/stale-banner";
+import { formatRefreshedAgo } from "@/lib/lookup/format";
 import type {
   LookupResponse,
   OrderCard,
@@ -13,6 +14,9 @@ import type {
   StatusResponse,
 } from "@/lib/lookup/types";
 import { cn } from "cn";
+
+const FOOTER_TICK_MS = 30_000;
+const STATUS_POLL_MS = 5 * 60_000;
 
 type ResultState =
   | { kind: "found"; card: OrderCard; snapshot: SnapshotInfo }
@@ -56,6 +60,7 @@ export function OrderLookup() {
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [result, setResult] = useState<ResultState | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
     let cancelled = false;
@@ -90,6 +95,64 @@ export function OrderLookup() {
     void loadStatus();
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    let statusIntervalId: number | null = null;
+
+    async function refreshStatus() {
+      try {
+        const response = await fetch("/api/status");
+        const body = (await response.json()) as StatusResponse;
+        if (cancelled || body.status !== "ok") {
+          return;
+        }
+        setSnapshot(body.snapshot);
+      } catch {
+        // Keep the current snapshot on failure.
+      }
+    }
+
+    function stopStatusInterval() {
+      if (statusIntervalId !== null) {
+        window.clearInterval(statusIntervalId);
+        statusIntervalId = null;
+      }
+    }
+
+    function startStatusInterval() {
+      stopStatusInterval();
+      statusIntervalId = window.setInterval(() => {
+        void refreshStatus();
+      }, STATUS_POLL_MS);
+    }
+
+    function onVisibilityChange() {
+      if (document.visibilityState !== "visible") {
+        stopStatusInterval();
+        return;
+      }
+      setNowMs(Date.now());
+      void refreshStatus();
+      startStatusInterval();
+    }
+
+    const footerIntervalId = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, FOOTER_TICK_MS);
+
+    if (document.visibilityState === "visible") {
+      startStatusInterval();
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(footerIntervalId);
+      stopStatusInterval();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);
 
@@ -202,10 +265,6 @@ export function OrderLookup() {
   }
 
   const footerSnapshot = snapshot;
-  const activeSnapshot =
-    result?.kind === "found" || result?.kind === "not_found"
-      ? result.snapshot
-      : snapshot;
 
   return (
     <>
@@ -230,7 +289,7 @@ export function OrderLookup() {
             inputRef={inputRef}
           />
 
-          {activeSnapshot ? <StaleBanner snapshot={activeSnapshot} /> : null}
+          {footerSnapshot ? <StaleBanner snapshot={footerSnapshot} /> : null}
 
           <div aria-live="polite" className="flex flex-col gap-4">
             {noData ? (
@@ -257,7 +316,7 @@ export function OrderLookup() {
           : noData
             ? "No data loaded yet"
             : footerSnapshot
-              ? `Data as of ${footerSnapshot.asOfLabel}`
+              ? `Order info refreshed ${formatRefreshedAgo(footerSnapshot.asOf, nowMs)}, as of ${footerSnapshot.asOfLabel}`
               : null}
       </footer>
     </>

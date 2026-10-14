@@ -98,12 +98,17 @@ Optional environment variables:
 ## Deploy
 
 - App Service settings: `ORDER_SOURCE=snapshot`, `ORDER_BLOB_SAS_URL`, `DATA_DIR=/home/data`, `HOSTNAME=0.0.0.0`.
+- `SCM_DO_BUILD_DURING_DEPLOYMENT=false`.
 - Always On.
 - Startup command: `node server.js`.
 - Health check path `/api/health`.
 - Application logs on File System with 30-day retention.
 - Access restrictions before any real data.
+- The Advanced tool site stays unrestricted so deploys reach it.
+- The GitHub secret `AZURE_WEBAPP_PUBLISH_PROFILE` and the variable `AZURE_WEBAPP_NAME`.
+- `DATA_DIR` on `/home` survives deploys and restarts.
+- After a deploy, the poller reloads the snapshot within 10 minutes.
 
 ## Status
 
-UI and ingest on invented fixtures and a refuse-and-keep blob poller. Sign-in and logging arrive in later tasks.
+Deploys to Azure App Service on every push to main. Reads the Matrixify export from blob storage every 10 minutes.

@@ -108,6 +108,7 @@ Optional environment variables:
 - The GitHub secret `AZURE_WEBAPP_PUBLISH_PROFILE` and the variable `AZURE_WEBAPP_NAME`.
 - `DATA_DIR` on `/home` survives deploys and restarts.
 - After a deploy, the poller reloads the snapshot within 10 minutes.
+- @emnapi/core and @emnapi/runtime are pinned as dev dependencies so npm ci resolves the same tree on Windows and on the Linux build runner.
 
 ## Status
 

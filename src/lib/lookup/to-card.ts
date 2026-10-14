@@ -6,6 +6,7 @@ import {
   matchLocation,
   matchStore,
   rules,
+  supplierLocation,
 } from "@/lib/config";
 import { formatDateTime } from "@/lib/lookup/format";
 import type {
@@ -19,6 +20,10 @@ import type {
 type Line = OrderRecord["lines"][number];
 type Fulfilment = OrderRecord["fulfillments"][number];
 type Outcome = "collected" | "delivered" | "dispatched";
+
+function isDropship(line: Line): boolean {
+  return line.dropship === true;
+}
 
 function orderTypeOf(
   shippingTitle: string | null,
@@ -312,18 +317,60 @@ function buildUnfulfilledGroup(
   return { status, now, going, items };
 }
 
+function buildDropshipUnfulfilledGroup(lines: Line[]): CardGroup | null {
+  const items = lines
+    .filter((line) => line.fulfillableQuantity > 0)
+    .map((line) => ({
+      quantity: line.fulfillableQuantity,
+      title: line.title,
+      sku: line.sku,
+    }));
+  if (items.length === 0) {
+    return null;
+  }
+
+  const supplier = supplierLocation();
+  return {
+    status: { label: "Not yet dispatched", tone: "neutral" },
+    now: {
+      kind: "supplier",
+      place: supplier.label,
+      detail: supplier.detail,
+    },
+    going: {
+      kind: "customer",
+      place: "Customer's address",
+      detail: "Delivery by the supplier",
+    },
+    items,
+  };
+}
+
+function tagsForUnfulfilledRule(
+  locationTags: string[],
+  orderHasDropship: boolean,
+): string[] {
+  if (!orderHasDropship) {
+    return locationTags;
+  }
+  return locationTags.filter((tag) => {
+    const matched = matchLocation(tag);
+    return matched?.kind !== "supplier";
+  });
+}
+
 function overallStatus(
   orderType: OrderCard["orderType"],
   fulfilled: CardGroup[],
-  unfulfilled: CardGroup | null,
+  unfulfilled: CardGroup[],
 ): CardStatus {
-  if (fulfilled.length === 0 && unfulfilled === null) {
+  if (fulfilled.length === 0 && unfulfilled.length === 0) {
     return { label: "No items to fulfil", tone: "neutral" };
   }
-  if (fulfilled.length === 0 && unfulfilled) {
-    return unfulfilled.status;
+  if (fulfilled.length === 0 && unfulfilled.length > 0) {
+    return unfulfilled[0].status;
   }
-  if (fulfilled.length > 0 && unfulfilled) {
+  if (fulfilled.length > 0 && unfulfilled.length > 0) {
     if (orderType === "Collection") {
       return { label: "Partly collected", tone: "progress" };
     }
@@ -383,16 +430,25 @@ export function toCard(record: OrderRecord): OrderCard {
     buildFulfilledGroup(aggregate, linesById, collectionStore),
   );
 
-  const unfulfilled = buildUnfulfilledGroup(
-    activeLines,
+  const orderHasDropship = activeLines.some(isDropship);
+  const storeLines = activeLines.filter((line) => !isDropship(line));
+  const dropshipLines = activeLines.filter(isDropship);
+
+  const storeUnfulfilled = buildUnfulfilledGroup(
+    storeLines,
     orderType,
     collectionStore,
-    record.locationTags,
+    tagsForUnfulfilledRule(record.locationTags, orderHasDropship),
   );
+  const dropshipUnfulfilled = buildDropshipUnfulfilledGroup(dropshipLines);
 
-  const groups = unfulfilled
-    ? [...fulfilledMerged, unfulfilled]
-    : fulfilledMerged;
+  const unfulfilled: CardGroup[] = [];
+  if (storeUnfulfilled) {
+    unfulfilled.push(storeUnfulfilled);
+  }
+  if (dropshipUnfulfilled) {
+    unfulfilled.push(dropshipUnfulfilled);
+  }
 
   return {
     orderName: record.name,
@@ -400,6 +456,6 @@ export function toCard(record: OrderRecord): OrderCard {
     orderedLabel,
     status: overallStatus(orderType, fulfilledMerged, unfulfilled),
     cancelledLabel: null,
-    groups,
+    groups: [...fulfilledMerged, ...unfulfilled],
   };
 }

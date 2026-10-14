@@ -26,6 +26,7 @@
     "dsv": "DSV"
   },
   "locationFromTag": { "Delivery": true, "Collection": false },
+  "dropshipLineProperty": "_dropship",
   "ingest": { "pollMinutes": 10, "maxMegabytes": 50 },
   "rateLimit": { "max": 300, "windowMinutes": 5 }
 }

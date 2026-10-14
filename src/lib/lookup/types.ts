@@ -11,6 +11,7 @@ export type OrderRecord = {
     quantity: number;
     currentQuantity: number;
     fulfillableQuantity: number;
+    dropship: boolean;
   }[];
   fulfillments: {
     status: string;

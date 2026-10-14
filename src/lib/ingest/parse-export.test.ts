@@ -148,4 +148,87 @@ describe("parseExport", () => {
     expect(toCard(deliverToDoor).orderType).toBe("Delivery");
     expect(result.report.unknownShippingTitles).toEqual([]);
   });
+
+  it("reads dropship from Line: Properties and stores only the boolean", () => {
+    const properties = "_vendor: Acme\n_dropship: true\n_note: ignore me";
+    const escape = (value: string): string =>
+      /[",\n\r]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
+    const withProperties = [
+      `${header},Line: Properties`,
+      [
+        "501",
+        "#9902040",
+        "",
+        "2026-10-12 09:00:00 +0100",
+        "",
+        "Line Item",
+        "L1",
+        "Item",
+        "SKU1",
+        "1",
+        "1",
+        "1",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        properties,
+      ]
+        .map(escape)
+        .join(","),
+      [
+        "501",
+        "#9902040",
+        "",
+        "2026-10-12 09:00:00 +0100",
+        "",
+        "Shipping Line",
+        "",
+        "Standard",
+        "",
+        "1",
+        "1",
+        "0",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+      ].join(","),
+      "",
+    ].join("\n");
+    const result = parseExport(withProperties, asOf);
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    const order = result.records.get("9902040");
+    expect(order?.lines).toHaveLength(1);
+    expect(order?.lines[0].dropship).toBe(true);
+    const serialised = JSON.stringify(order?.lines[0]);
+    expect(serialised).not.toContain("_vendor");
+    expect(serialised).not.toContain("Acme");
+    expect(serialised).not.toContain("_note");
+    expect(serialised).not.toContain("ignore me");
+    expect(serialised).not.toContain("Line: Properties");
+  });
+
+  it("loads files without Line: Properties with dropship false", () => {
+    const csv = `${header}
+601,#9902041,,2026-10-12 09:00:00 +0100,,Line Item,L1,Item A,SKU1,1,1,1,,,,,,
+601,#9902041,,2026-10-12 09:00:00 +0100,,Line Item,L2,Item B,SKU2,1,1,1,,,,,,
+601,#9902041,,2026-10-12 09:00:00 +0100,,Shipping Line,,Standard,,1,1,0,,,,,,
+`;
+    const result = parseExport(csv, asOf);
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    const order = result.records.get("9902041");
+    expect(order?.lines.map((line) => line.dropship)).toEqual([false, false]);
+  });
 });

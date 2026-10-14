@@ -23,6 +23,7 @@ type RulesConfig = {
   collectionTitlePrefixes: string[];
   carrierNames: Record<string, string>;
   locationFromTag: { Delivery: boolean; Collection: boolean };
+  dropshipLineProperty: string;
   ingest: { pollMinutes: number; maxMegabytes: number };
   rateLimit: { max: number; windowMinutes: number };
 };
@@ -157,6 +158,11 @@ function validateRules(value: unknown): RulesConfig {
       "config/rules.json locationFromTag needs Delivery and Collection booleans",
     );
   }
+  if (typeof record.dropshipLineProperty !== "string") {
+    throw new Error(
+      "config/rules.json dropshipLineProperty must be a string",
+    );
+  }
   if (typeof record.ingest !== "object" || record.ingest === null) {
     throw new Error("config/rules.json ingest must be an object");
   }
@@ -190,6 +196,7 @@ function validateRules(value: unknown): RulesConfig {
       Delivery: tags.Delivery,
       Collection: tags.Collection,
     },
+    dropshipLineProperty: record.dropshipLineProperty,
     ingest: {
       pollMinutes: ingest.pollMinutes,
       maxMegabytes: ingest.maxMegabytes,
@@ -212,6 +219,7 @@ export const rules = {
   collectionTitlePrefixes: rulesConfig.collectionTitlePrefixes,
   carrierNames: rulesConfig.carrierNames,
   locationFromTag: rulesConfig.locationFromTag,
+  dropshipLineProperty: rulesConfig.dropshipLineProperty,
   ingest: rulesConfig.ingest,
   rateLimit: rulesConfig.rateLimit,
 };
@@ -247,6 +255,24 @@ export function matchLocation(name: string): MatchedLocation | null {
     }
   }
   return null;
+}
+
+export function supplierLocation(): MatchedLocation {
+  for (const [configured, entry] of Object.entries(
+    locations.nonStoreLocations,
+  )) {
+    if (entry.kind === "supplier") {
+      return {
+        name: configured,
+        kind: entry.kind,
+        label: entry.label,
+        detail: entry.detail,
+      };
+    }
+  }
+  throw new Error(
+    "config/locations.json needs a supplier nonStoreLocation",
+  );
 }
 
 export function hasDisplayName(raw: string): boolean {

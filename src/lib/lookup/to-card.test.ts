@@ -111,6 +111,66 @@ describe("toCard", () => {
     expect(card.groups[0].now?.place).toBe("With DPD Ireland");
   });
 
+  it("9901014: dispatched store items plus undispatched dropship", () => {
+    const card = toCard(fixture("#9901014"));
+    expect(card.status).toEqual({
+      label: "Partly dispatched",
+      tone: "progress",
+    });
+    expect(card.groups).toHaveLength(2);
+    expect(card.groups[0].status.label).toBe("Dispatched");
+    expect(card.groups[0].now).toEqual({
+      kind: "carrier",
+      place: "With DPD Ireland",
+      detail: "Dispatched from Castlebar, 12 Oct 2026, 10:57",
+    });
+    expect(card.groups[0].items.map((item) => item.sku)).toEqual([
+      "JBLGO4BLU",
+      "ANKUSBCWHT",
+    ]);
+    expect(card.groups[1].status).toEqual({
+      label: "Not yet dispatched",
+      tone: "neutral",
+    });
+    expect(card.groups[1].now).toEqual({
+      kind: "supplier",
+      place: "With the supplier",
+      detail: "Ships direct to the customer",
+    });
+    expect(card.groups[1].going).toEqual({
+      kind: "customer",
+      place: "Customer's address",
+      detail: "Delivery by the supplier",
+    });
+    expect(card.groups[1].items).toEqual([
+      {
+        quantity: 1,
+        title: "Petzl Actik Core Headlamp | Black",
+        sku: "DS250999-000001",
+      },
+    ]);
+    expect(
+      card.groups.some((group) =>
+        group.now?.place?.includes("Allocated across"),
+      ),
+    ).toBe(false);
+  });
+
+  it("Dropship POS tag with no dropship lines is unchanged", () => {
+    const card = toCard(fixture("#9901007"));
+    expect(card.groups).toHaveLength(1);
+    expect(card.groups[0].now).toEqual({
+      kind: "supplier",
+      place: "With the supplier",
+      detail: "Ships direct to the customer",
+    });
+    expect(card.groups[0].going).toEqual({
+      kind: "customer",
+      place: "Customer's address",
+      detail: "Home delivery",
+    });
+  });
+
   it("maps and merges carrier spelling variants into one group", () => {
     const card = toCard({
       name: "#9901999",
@@ -126,6 +186,7 @@ describe("toCard", () => {
           quantity: 1,
           currentQuantity: 1,
           fulfillableQuantity: 0,
+          dropship: false,
         },
         {
           lineId: "L2",
@@ -134,6 +195,7 @@ describe("toCard", () => {
           quantity: 1,
           currentQuantity: 1,
           fulfillableQuantity: 0,
+          dropship: false,
         },
       ],
       fulfillments: [

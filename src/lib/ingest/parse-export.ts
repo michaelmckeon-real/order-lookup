@@ -103,6 +103,24 @@ function toNumber(value: string): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function parseDropshipFlag(properties: string, key: string): boolean {
+  for (const line of properties.split(/\r?\n/)) {
+    const colon = line.indexOf(":");
+    if (colon === -1) {
+      continue;
+    }
+    const propKey = line.slice(0, colon).trim();
+    const propValue = line.slice(colon + 1).trim();
+    if (
+      propKey === key &&
+      propValue.toLowerCase() === "true"
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function parseExport(
   csvText: string,
   asOfIso: string,
@@ -130,6 +148,7 @@ export function parseExport(
   if (missing.length > 0) {
     return { ok: false, reason: "missing_columns", missing: [...missing] };
   }
+  const hasLineProperties = headerSet.has("Line: Properties");
 
   const drafts = new Map<string, OrderDraft>();
 
@@ -157,6 +176,12 @@ export function parseExport(
 
     const lineType = cell(row, "Line: Type");
     if (lineType === "Line Item") {
+      const dropship = hasLineProperties
+        ? parseDropshipFlag(
+            cell(row, "Line: Properties"),
+            rules.dropshipLineProperty,
+          )
+        : false;
       draft.lines.push({
         lineId: cell(row, "Line: ID"),
         title: cell(row, "Line: Title"),
@@ -166,6 +191,7 @@ export function parseExport(
         fulfillableQuantity: toNumber(
           cell(row, "Line: Fulfillable Quantity"),
         ),
+        dropship,
       });
       continue;
     }

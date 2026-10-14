@@ -198,6 +198,11 @@ export function OrderCardView({
           <div className="flex flex-wrap items-center gap-2">
             <TypeChip orderType={card.orderType} />
             <StatusBadge status={card.status} />
+            {card.refundLabel ? (
+              <StatusBadge
+                status={{ label: card.refundLabel, tone: "neutral" }}
+              />
+            ) : null}
           </div>
         </div>
         <p className="mt-2 text-[13.5px] text-muted-foreground">
@@ -205,10 +210,10 @@ export function OrderCardView({
         </p>
       </header>
 
-      {card.cancelledLabel ? (
+      {card.closedLabel ? (
         <div className="mx-5 mb-4 flex gap-3 rounded-lg bg-red-50 px-3.5 py-3 text-sm text-red-800">
           <Ban size={18} className="mt-0.5 shrink-0" aria-hidden />
-          <p>{card.cancelledLabel}</p>
+          <p>{card.closedLabel}</p>
         </div>
       ) : null}
 

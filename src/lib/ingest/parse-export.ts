@@ -7,7 +7,7 @@ import {
   rules,
 } from "@/lib/config";
 import { orderKeyFromName } from "@/lib/lookup/normalise";
-import type { OrderRecord } from "@/lib/lookup/types";
+import type { OrderRecord, RefundState } from "@/lib/lookup/types";
 
 const REQUIRED_HEADERS = [
   "ID",
@@ -60,6 +60,7 @@ type OrderDraft = {
   cancelledAt: string | null;
   tagsRaw: string;
   shippingTitle: string | null;
+  refund: RefundState;
   lines: OrderRecord["lines"];
   fulfillments: Map<string, FulfilmentDraft>;
 };
@@ -121,6 +122,17 @@ function parseDropshipFlag(properties: string, key: string): boolean {
   return false;
 }
 
+function parseRefund(raw: string): RefundState {
+  const normalised = raw.trim().toLowerCase().replaceAll(" ", "_");
+  if (normalised === "refunded") {
+    return "full";
+  }
+  if (normalised === "partially_refunded") {
+    return "partial";
+  }
+  return "none";
+}
+
 export function parseExport(
   csvText: string,
   asOfIso: string,
@@ -149,6 +161,7 @@ export function parseExport(
     return { ok: false, reason: "missing_columns", missing: [...missing] };
   }
   const hasLineProperties = headerSet.has("Line: Properties");
+  const hasPaymentStatus = headerSet.has("Payment: Status");
 
   const drafts = new Map<string, OrderDraft>();
 
@@ -168,6 +181,9 @@ export function parseExport(
           cancelledRaw.length === 0 ? null : toIso(cancelledRaw),
         tagsRaw: cell(row, "Tags"),
         shippingTitle: null,
+        refund: hasPaymentStatus
+          ? parseRefund(cell(row, "Payment: Status"))
+          : "none",
         lines: [],
         fulfillments: new Map(),
       };
@@ -297,6 +313,7 @@ export function parseExport(
       cancelledAt: draft.cancelledAt,
       locationTags: parseTags(draft.tagsRaw),
       shippingTitle: draft.shippingTitle,
+      refund: draft.refund,
       lines: draft.lines,
       fulfillments: Array.from(draft.fulfillments.values()).map((item) => ({
         status: item.status,

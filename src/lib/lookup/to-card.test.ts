@@ -11,6 +11,10 @@ function fixture(name: string): OrderRecord {
   return order;
 }
 
+function cardText(card: ReturnType<typeof toCard>): string {
+  return JSON.stringify(card);
+}
+
 describe("toCard", () => {
   it("9901001: merges item-by-item fulfilments into one dispatched group", () => {
     const card = toCard(fixture("#9901001"));
@@ -65,7 +69,7 @@ describe("toCard", () => {
   it("9901004: cancelled with original quantities", () => {
     const card = toCard(fixture("#9901004"));
     expect(card.status).toEqual({ label: "Cancelled", tone: "cancelled" });
-    expect(card.cancelledLabel).toBe(
+    expect(card.closedLabel).toBe(
       "Cancelled 11 Oct 2026, 10:15. Nothing will be dispatched.",
     );
     expect(card.groups[0].items.map((item) => item.quantity)).toEqual([1, 1]);
@@ -87,9 +91,18 @@ describe("toCard", () => {
     });
   });
 
-  it("9901007: with the supplier", () => {
+  it("9901007: with the supplier, ships direct to customer", () => {
     const card = toCard(fixture("#9901007"));
-    expect(card.groups[0].now?.place).toBe("With the supplier");
+    expect(card.groups[0].now).toEqual({
+      kind: "supplier",
+      place: "With the supplier",
+      detail: "Not yet dispatched",
+    });
+    expect(card.groups[0].going).toEqual({
+      kind: "customer",
+      place: "Customer's address",
+      detail: "Ships direct to customer",
+    });
   });
 
   it("9901008: delivered", () => {
@@ -135,12 +148,12 @@ describe("toCard", () => {
     expect(card.groups[1].now).toEqual({
       kind: "supplier",
       place: "With the supplier",
-      detail: "Ships direct to the customer",
+      detail: "Not yet dispatched",
     });
     expect(card.groups[1].going).toEqual({
       kind: "customer",
       place: "Customer's address",
-      detail: "Delivery by the supplier",
+      detail: "Ships direct to customer",
     });
     expect(card.groups[1].items).toEqual([
       {
@@ -156,19 +169,106 @@ describe("toCard", () => {
     ).toBe(false);
   });
 
-  it("Dropship POS tag with no dropship lines is unchanged", () => {
-    const card = toCard(fixture("#9901007"));
+  it("9901015: refunded in full before dispatch", () => {
+    const card = toCard(fixture("#9901015"));
+    expect(card.status).toEqual({ label: "Refunded", tone: "cancelled" });
+    expect(card.closedLabel).toBe(
+      "Refunded in full. Nothing will be dispatched.",
+    );
+    expect(card.refundLabel).toBeNull();
     expect(card.groups).toHaveLength(1);
+    expect(card.groups[0].status).toEqual({
+      label: "Refunded",
+      tone: "cancelled",
+    });
+    expect(card.groups[0].now).toBeNull();
+    expect(card.groups[0].going).toBeNull();
+    expect(card.groups[0].items).toEqual([
+      {
+        quantity: 1,
+        title: "Samsung Galaxy A56 5G | 128GB | Graphite",
+        sku: "SMA566GRA",
+      },
+    ]);
+  });
+
+  it("9901015 with refund none: no items to fulfil", () => {
+    const card = toCard({ ...fixture("#9901015"), refund: "none" });
+    expect(card.status).toEqual({
+      label: "No items to fulfil",
+      tone: "neutral",
+    });
+    expect(card.groups).toHaveLength(0);
+    expect(card.closedLabel).toBeNull();
+    expect(card.refundLabel).toBeNull();
+  });
+
+  it("9901016: partly refunded, rest dispatched", () => {
+    const card = toCard(fixture("#9901016"));
+    expect(card.status).toEqual({ label: "Dispatched", tone: "progress" });
+    expect(card.refundLabel).toBe("Partly refunded");
+    expect(card.groups).toHaveLength(1);
+    expect(card.groups[0].items.map((item) => item.sku)).toEqual([
+      "WH1000XM5B",
+    ]);
+    expect(card.groups[0].now?.place).toBe("With DPD Ireland");
+  });
+
+  it("9901017: dropship dispatched by the supplier with carrier", () => {
+    const card = toCard(fixture("#9901017"));
+    expect(card.status).toEqual({ label: "Dispatched", tone: "progress" });
     expect(card.groups[0].now).toEqual({
-      kind: "supplier",
-      place: "With the supplier",
-      detail: "Ships direct to the customer",
+      kind: "carrier",
+      place: "With An Post",
+      detail: "Dispatched by the supplier, 12 Oct 2026, 16:20",
     });
     expect(card.groups[0].going).toEqual({
       kind: "customer",
       place: "Customer's address",
-      detail: "Home delivery",
+      detail: "Ships direct to customer",
     });
+  });
+
+  it("9901017 with trackingCompany null: supplier dispatch wording", () => {
+    const base = fixture("#9901017");
+    const card = toCard({
+      ...base,
+      fulfillments: base.fulfillments.map((item) => ({
+        ...item,
+        trackingCompany: null,
+      })),
+    });
+    expect(card.groups[0].now).toEqual({
+      kind: "supplier",
+      place: "With the supplier",
+      detail: "Dispatched 12 Oct 2026, 16:20",
+    });
+    expect(card.groups[0].going).toEqual({
+      kind: "customer",
+      place: "Customer's address",
+      detail: "Ships direct to customer",
+    });
+  });
+
+  it("9901001 with refund full: still dispatched, refund badge", () => {
+    const card = toCard({ ...fixture("#9901001"), refund: "full" });
+    expect(card.status).toEqual({ label: "Dispatched", tone: "progress" });
+    expect(card.refundLabel).toBe("Refunded");
+  });
+
+  it("9901004 with refund full: cancelled plus refund badge", () => {
+    const card = toCard({ ...fixture("#9901004"), refund: "full" });
+    expect(card.status).toEqual({ label: "Cancelled", tone: "cancelled" });
+    expect(card.closedLabel).toBe(
+      "Cancelled 11 Oct 2026, 10:15. Nothing will be dispatched.",
+    );
+    expect(card.refundLabel).toBe("Refunded");
+  });
+
+  it("9901007, 9901014 and 9901017 cards never contain Dropship POS", () => {
+    for (const name of ["#9901007", "#9901014", "#9901017"]) {
+      expect(cardText(toCard(fixture(name)))).not.toContain("Dropship POS");
+    }
   });
 
   it("maps and merges carrier spelling variants into one group", () => {
@@ -178,6 +278,7 @@ describe("toCard", () => {
       cancelledAt: null,
       locationTags: ["Swords"],
       shippingTitle: "Standard",
+      refund: "none",
       lines: [
         {
           lineId: "L1",

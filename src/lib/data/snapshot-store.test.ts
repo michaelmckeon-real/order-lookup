@@ -35,6 +35,7 @@ describe("snapshot-store", () => {
           cancelledAt: null,
           locationTags: [],
           shippingTitle: "Standard",
+          refund: "none",
           lines: [],
           fulfillments: [],
         },

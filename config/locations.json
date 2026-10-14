@@ -7,7 +7,7 @@
   "nonStoreLocations": {
     "Unassigned Store": { "kind": "finding_stock", "label": "Finding stock", "detail": "Being allocated to a store" },
     "Shop location": { "kind": "finding_stock", "label": "Finding stock", "detail": "Being allocated to a store" },
-    "Dropship POS": { "kind": "supplier", "label": "With the supplier", "detail": "Ships direct to the customer" }
+    "Dropship POS": { "kind": "supplier", "label": "With the supplier", "detail": "Not yet dispatched" }
   },
   "displayNames": {
     "GiftCards Online": "Gift cards online"

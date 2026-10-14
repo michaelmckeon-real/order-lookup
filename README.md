@@ -45,8 +45,9 @@ Matrixify publishes one CSV into Azure Blob Storage every hour. The app does not
 - Sheet: Orders
 - Format: CSV
 - Filter: Created At, relative date, Last 720 hours. "Last 30 days" counts only full days, stops at midnight and misses today.
-- Columns (required): ID, Name, Tags, Created At, Cancelled At, Line: Type, Line: ID, Line: Title, Line: SKU, Line: Quantity, Line: Current Quantity, Line: Fulfillable Quantity, Line: Properties, Fulfillment: ID, Fulfillment: Status, Fulfillment: Created At, Fulfillment: Location, Fulfillment: Tracking Company, Fulfillment: Shipment Status
+- Columns (required): ID, Name, Tags, Created At, Cancelled At, Line: Type, Line: ID, Line: Title, Line: SKU, Line: Quantity, Line: Current Quantity, Line: Fulfillable Quantity, Line: Properties, Payment: Status, Fulfillment: ID, Fulfillment: Status, Fulfillment: Created At, Fulfillment: Location, Fulfillment: Tracking Company, Fulfillment: Shipment Status
 - Line: Properties is optional at parse time for older files. Only the dropship flag is kept; the rest of the column is discarded at parse time.
+- Payment: Status is optional at parse time for older files. Only the refund state is kept; the raw value is discarded at parse time.
 - Custom file name: `order_lookup`
 - Upload to the storage account over SFTP into the configured container
 - Repeat every hour (overwrite the same blob)

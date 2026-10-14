@@ -42,6 +42,7 @@ async function seedSnapshot(
       cancelledAt: null;
       locationTags: string[];
       shippingTitle: string;
+      refund: "none";
       lines: [];
       fulfillments: [];
     }
@@ -54,6 +55,7 @@ async function seedSnapshot(
       cancelledAt: null,
       locationTags: [],
       shippingTitle: "Standard",
+      refund: "none",
       lines: [],
       fulfillments: [],
     };

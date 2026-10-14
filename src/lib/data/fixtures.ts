@@ -7,6 +7,7 @@ export const fixtureOrders: OrderRecord[] = [
     cancelledAt: null,
     locationTags: ["Little Island Cork"],
     shippingTitle: "Standard",
+    refund: "none",
     lines: [
       {
         lineId: "L1",
@@ -53,6 +54,7 @@ export const fixtureOrders: OrderRecord[] = [
     cancelledAt: null,
     locationTags: ["Tallaght"],
     shippingTitle: "Tallaght",
+    refund: "none",
     lines: [
       {
         lineId: "L1",
@@ -73,6 +75,7 @@ export const fixtureOrders: OrderRecord[] = [
     cancelledAt: null,
     locationTags: ["Blanchardstown"],
     shippingTitle: "Standard",
+    refund: "none",
     lines: [
       {
         lineId: "L1",
@@ -110,6 +113,7 @@ export const fixtureOrders: OrderRecord[] = [
     cancelledAt: "2026-10-11T10:15:00+01:00",
     locationTags: ["Naas"],
     shippingTitle: "Standard",
+    refund: "none",
     lines: [
       {
         lineId: "L1",
@@ -138,6 +142,7 @@ export const fixtureOrders: OrderRecord[] = [
     cancelledAt: null,
     locationTags: ["Swords", "Galway"],
     shippingTitle: "Standard",
+    refund: "none",
     lines: [
       {
         lineId: "L1",
@@ -166,6 +171,7 @@ export const fixtureOrders: OrderRecord[] = [
     cancelledAt: null,
     locationTags: ["Unassigned Store"],
     shippingTitle: "Standard",
+    refund: "none",
     lines: [
       {
         lineId: "L1",
@@ -185,6 +191,7 @@ export const fixtureOrders: OrderRecord[] = [
     cancelledAt: null,
     locationTags: ["Dropship POS"],
     shippingTitle: "Standard",
+    refund: "none",
     lines: [
       {
         lineId: "L1",
@@ -204,6 +211,7 @@ export const fixtureOrders: OrderRecord[] = [
     cancelledAt: null,
     locationTags: ["Little Island Cork"],
     shippingTitle: "Standard",
+    refund: "none",
     lines: [
       {
         lineId: "L1",
@@ -232,6 +240,7 @@ export const fixtureOrders: OrderRecord[] = [
     cancelledAt: null,
     locationTags: ["Galway"],
     shippingTitle: "Galway",
+    refund: "none",
     lines: [
       {
         lineId: "L1",
@@ -260,6 +269,7 @@ export const fixtureOrders: OrderRecord[] = [
     cancelledAt: null,
     locationTags: ["Swords"],
     shippingTitle: "Deliver to Door",
+    refund: "none",
     lines: [
       {
         lineId: "L1",
@@ -288,6 +298,7 @@ export const fixtureOrders: OrderRecord[] = [
     cancelledAt: null,
     locationTags: ["Castlebar", "Dropship POS"],
     shippingTitle: "Standard",
+    refund: "none",
     lines: [
       {
         lineId: "L1",
@@ -333,6 +344,93 @@ export const fixtureOrders: OrderRecord[] = [
         trackingCompany: "DPD Ireland",
         shipmentStatus: null,
         items: [{ lineId: "L2", quantity: 1 }],
+      },
+    ],
+  },
+  {
+    name: "#9901015",
+    createdAt: "2026-10-12T19:20:00+01:00",
+    cancelledAt: null,
+    locationTags: ["Tallaght"],
+    shippingTitle: "Standard",
+    refund: "full",
+    lines: [
+      {
+        lineId: "L1",
+        title: "Samsung Galaxy A56 5G | 128GB | Graphite",
+        sku: "SMA566GRA",
+        quantity: 1,
+        currentQuantity: 0,
+        fulfillableQuantity: 0,
+        dropship: false,
+      },
+    ],
+    fulfillments: [],
+  },
+  {
+    name: "#9901016",
+    createdAt: "2026-10-10T11:20:00+01:00",
+    cancelledAt: null,
+    locationTags: ["Swords"],
+    shippingTitle: "Standard",
+    refund: "partial",
+    lines: [
+      {
+        lineId: "L1",
+        title: "Sony WH-1000XM5 Wireless Headphones | Black",
+        sku: "WH1000XM5B",
+        quantity: 1,
+        currentQuantity: 1,
+        fulfillableQuantity: 0,
+        dropship: false,
+      },
+      {
+        lineId: "L2",
+        title: "Sony WLA-NS7 Wireless TV Adapter",
+        sku: "WLANS7",
+        quantity: 1,
+        currentQuantity: 0,
+        fulfillableQuantity: 0,
+        dropship: false,
+      },
+    ],
+    fulfillments: [
+      {
+        status: "success",
+        createdAt: "2026-10-11T09:30:00+01:00",
+        location: "Swords",
+        trackingCompany: "DPD Ireland",
+        shipmentStatus: null,
+        items: [{ lineId: "L1", quantity: 1 }],
+      },
+    ],
+  },
+  {
+    name: "#9901017",
+    createdAt: "2026-10-11T14:05:00+01:00",
+    cancelledAt: null,
+    locationTags: ["Dropship POS"],
+    shippingTitle: "Standard",
+    refund: "none",
+    lines: [
+      {
+        lineId: "L1",
+        title: "Weber Spirit E-325 Gas Barbecue | Black",
+        sku: "DS250999-000002",
+        quantity: 1,
+        currentQuantity: 1,
+        fulfillableQuantity: 0,
+        dropship: true,
+      },
+    ],
+    fulfillments: [
+      {
+        status: "success",
+        createdAt: "2026-10-12T16:20:00+01:00",
+        location: "Dropship POS",
+        trackingCompany: "An Post",
+        shipmentStatus: null,
+        items: [{ lineId: "L1", quantity: 1 }],
       },
     ],
   },

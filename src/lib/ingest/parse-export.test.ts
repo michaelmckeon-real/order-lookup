@@ -231,4 +231,56 @@ describe("parseExport", () => {
     const order = result.records.get("9902041");
     expect(order?.lines.map((line) => line.dropship)).toEqual([false, false]);
   });
+
+  it("maps Payment: Status to refund and stores nothing else from the column", () => {
+    const withStatus = `${header},Payment: Status`;
+    const cases: { raw: string; refund: "none" | "partial" | "full" }[] = [
+      { raw: "refunded", refund: "full" },
+      { raw: "partially_refunded", refund: "partial" },
+      { raw: " Partially Refunded ", refund: "partial" },
+      { raw: "paid", refund: "none" },
+      { raw: "", refund: "none" },
+    ];
+    for (const [index, item] of cases.entries()) {
+      const id = 700 + index;
+      const key = `990205${index}`;
+      const paymentCell =
+        item.raw.length > 0 && /[",\n\r ]/.test(item.raw)
+          ? `"${item.raw}"`
+          : item.raw;
+      const csv = `${withStatus}
+${id},#${key},,2026-10-12 09:00:00 +0100,,Line Item,L1,Item,SKU1,1,1,1,,,,,,,${paymentCell}
+${id},#${key},,2026-10-12 09:00:00 +0100,,Shipping Line,,Standard,,1,1,0,,,,,,,${paymentCell}
+`;
+      const result = parseExport(csv, asOf);
+      expect(result.ok).toBe(true);
+      if (!result.ok) {
+        return;
+      }
+      const order = result.records.get(key);
+      expect(order?.refund).toBe(item.refund);
+      const serialised = JSON.stringify(order);
+      expect(serialised).not.toContain("Payment: Status");
+      expect(serialised).not.toContain("partially_refunded");
+      expect(serialised).not.toContain("Partially Refunded");
+      expect(serialised).not.toContain('"paid"');
+      expect(serialised).not.toContain('"refunded"');
+    }
+  });
+
+  it("loads files without Payment: Status with refund none", () => {
+    const csv = `${header}
+801,#9902060,,2026-10-12 09:00:00 +0100,,Line Item,L1,Item A,SKU1,1,1,1,,,,,,
+801,#9902060,,2026-10-12 09:00:00 +0100,,Shipping Line,,Standard,,1,1,0,,,,,,
+802,#9902061,,2026-10-12 10:00:00 +0100,,Line Item,L1,Item B,SKU2,1,1,1,,,,,,
+802,#9902061,,2026-10-12 10:00:00 +0100,,Shipping Line,,Standard,,1,1,0,,,,,,
+`;
+    const result = parseExport(csv, asOf);
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    expect(result.records.get("9902060")?.refund).toBe("none");
+    expect(result.records.get("9902061")?.refund).toBe("none");
+  });
 });

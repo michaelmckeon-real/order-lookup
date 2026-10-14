@@ -15,6 +15,7 @@ import type {
   CardStatus,
   OrderCard,
   OrderRecord,
+  RefundState,
 } from "@/lib/lookup/types";
 
 type Line = OrderRecord["lines"][number];
@@ -23,6 +24,24 @@ type Outcome = "collected" | "delivered" | "dispatched";
 
 function isDropship(line: Line): boolean {
   return line.dropship === true;
+}
+
+function refundOf(record: OrderRecord): RefundState {
+  const value = record.refund;
+  if (value === "partial" || value === "full") {
+    return value;
+  }
+  return "none";
+}
+
+function refundLabelOf(refund: RefundState): string | null {
+  if (refund === "full") {
+    return "Refunded";
+  }
+  if (refund === "partial") {
+    return "Partly refunded";
+  }
+  return null;
 }
 
 function orderTypeOf(
@@ -150,6 +169,14 @@ function itemsFromAggregate(
   return items;
 }
 
+function customerShipsDirect(): CardNode {
+  return {
+    kind: "customer",
+    place: "Customer's address",
+    detail: "Ships direct to customer",
+  };
+}
+
 function buildFulfilledGroup(
   aggregate: AggregatedFulfilment,
   linesById: Map<string, Line>,
@@ -183,6 +210,32 @@ function buildFulfilledGroup(
           : null,
       },
       going: null,
+      items,
+    };
+  }
+
+  const locationMatch = matchLocation(aggregate.place);
+  if (locationMatch?.kind === "supplier") {
+    if (aggregate.trackingCompany) {
+      return {
+        status: { label: "Dispatched", tone: "progress" },
+        now: {
+          kind: "carrier",
+          place: `With ${aggregate.trackingCompany}`,
+          detail: `Dispatched by the supplier, ${dateLabel}`,
+        },
+        going: customerShipsDirect(),
+        items,
+      };
+    }
+    return {
+      status: { label: "Dispatched", tone: "progress" },
+      now: {
+        kind: "supplier",
+        place: locationMatch.label,
+        detail: `Dispatched ${dateLabel}`,
+      },
+      going: customerShipsDirect(),
       items,
     };
   }
@@ -295,7 +348,10 @@ function buildUnfulfilledGroup(
     going = {
       kind: "customer",
       place: "Customer's address",
-      detail: "Home delivery",
+      detail:
+        now.kind === "supplier"
+          ? "Ships direct to customer"
+          : "Home delivery",
     };
   } else {
     going = null;
@@ -337,11 +393,7 @@ function buildDropshipUnfulfilledGroup(lines: Line[]): CardGroup | null {
       place: supplier.label,
       detail: supplier.detail,
     },
-    going: {
-      kind: "customer",
-      place: "Customer's address",
-      detail: "Delivery by the supplier",
-    },
+    going: customerShipsDirect(),
     items,
   };
 }
@@ -389,6 +441,8 @@ function overallStatus(
 export function toCard(record: OrderRecord): OrderCard {
   const { orderType, collectionStore } = orderTypeOf(record.shippingTitle);
   const orderedLabel = `Ordered ${formatDateTime(record.createdAt)}`;
+  const refund = refundOf(record);
+  const refundLabel = refundLabelOf(refund);
 
   if (record.cancelledAt !== null) {
     const cancelledDate = formatDateTime(record.cancelledAt);
@@ -406,7 +460,8 @@ export function toCard(record: OrderRecord): OrderCard {
       orderType,
       orderedLabel,
       status: cancelledStatus,
-      cancelledLabel: `Cancelled ${cancelledDate}. Nothing will be dispatched.`,
+      closedLabel: `Cancelled ${cancelledDate}. Nothing will be dispatched.`,
+      refundLabel,
       groups: [
         {
           status: cancelledStatus,
@@ -450,12 +505,42 @@ export function toCard(record: OrderRecord): OrderCard {
     unfulfilled.push(dropshipUnfulfilled);
   }
 
+  const groups = [...fulfilledMerged, ...unfulfilled];
+
+  if (groups.length === 0 && refund === "full") {
+    const refundedStatus: CardStatus = {
+      label: "Refunded",
+      tone: "cancelled",
+    };
+    return {
+      orderName: record.name,
+      orderType,
+      orderedLabel,
+      status: refundedStatus,
+      closedLabel: "Refunded in full. Nothing will be dispatched.",
+      refundLabel: null,
+      groups: [
+        {
+          status: refundedStatus,
+          now: null,
+          going: null,
+          items: record.lines.map((line) => ({
+            quantity: line.quantity,
+            title: line.title,
+            sku: line.sku,
+          })),
+        },
+      ],
+    };
+  }
+
   return {
     orderName: record.name,
     orderType,
     orderedLabel,
     status: overallStatus(orderType, fulfilledMerged, unfulfilled),
-    cancelledLabel: null,
-    groups: [...fulfilledMerged, ...unfulfilled],
+    closedLabel: null,
+    refundLabel,
+    groups,
   };
 }

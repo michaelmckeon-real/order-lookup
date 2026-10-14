@@ -1,9 +1,12 @@
+export type RefundState = "none" | "partial" | "full";
+
 export type OrderRecord = {
   name: string;
   createdAt: string;
   cancelledAt: string | null;
   locationTags: string[];
   shippingTitle: string | null;
+  refund: RefundState;
   lines: {
     lineId: string;
     title: string;
@@ -59,7 +62,8 @@ export type OrderCard = {
   orderType: "Delivery" | "Collection" | "Unknown";
   orderedLabel: string;
   status: CardStatus;
-  cancelledLabel: string | null;
+  closedLabel: string | null;
+  refundLabel: string | null;
   groups: CardGroup[];
 };
 

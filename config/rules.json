@@ -1,6 +1,5 @@
 {
   "timeZone": "Europe/Dublin",
-  "windowDays": 30,
   "staleAfterHours": 3,
   "deliveryShippingTitles": ["Standard", "Deliver to Door", "Standard Delivery"],
   "collectionTitlePrefixes": ["Pickup: "],

@@ -17,7 +17,6 @@ type LocationsConfig = {
 
 type RulesConfig = {
   timeZone: string;
-  windowDays: number;
   staleAfterHours: number;
   deliveryShippingTitles: string[];
   collectionTitlePrefixes: string[];
@@ -105,9 +104,6 @@ function validateRules(value: unknown): RulesConfig {
   if (typeof record.timeZone !== "string") {
     throw new Error("config/rules.json timeZone must be a string");
   }
-  if (typeof record.windowDays !== "number") {
-    throw new Error("config/rules.json windowDays must be a number");
-  }
   if (typeof record.staleAfterHours !== "number") {
     throw new Error("config/rules.json staleAfterHours must be a number");
   }
@@ -187,7 +183,6 @@ function validateRules(value: unknown): RulesConfig {
   }
   return {
     timeZone: record.timeZone,
-    windowDays: record.windowDays,
     staleAfterHours: record.staleAfterHours,
     deliveryShippingTitles: record.deliveryShippingTitles,
     collectionTitlePrefixes: record.collectionTitlePrefixes,
@@ -213,7 +208,6 @@ const rulesConfig = validateRules(rulesJson);
 
 export const rules = {
   timeZone: rulesConfig.timeZone,
-  windowDays: rulesConfig.windowDays,
   staleAfterHours: rulesConfig.staleAfterHours,
   deliveryShippingTitles: rulesConfig.deliveryShippingTitles,
   collectionTitlePrefixes: rulesConfig.collectionTitlePrefixes,

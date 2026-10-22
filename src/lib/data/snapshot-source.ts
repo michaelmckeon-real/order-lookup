@@ -55,6 +55,7 @@ export const snapshotSource: OrderSource = {
     return {
       asOf: snapshot.asOf,
       orderCount: snapshot.orderCount,
+      oldestCreatedAt: snapshot.oldestCreatedAt,
     };
   },
 

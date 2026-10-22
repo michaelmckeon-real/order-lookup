@@ -28,6 +28,7 @@ describe("snapshot-store", () => {
       loadedAt: "2026-10-13T12:05:00.000Z",
       sourceFile: "order_lookup.csv",
       orderCount: 1,
+      oldestCreatedAt: "2026-10-12T09:14:00+01:00",
       orders: {
         "9902001": {
           name: "#9902001",
@@ -74,6 +75,7 @@ describe("snapshot-store", () => {
       loadedAt: "2026-10-13T12:05:00.000Z",
       sourceFile: "order_lookup.csv",
       orderCount: 1,
+      oldestCreatedAt: null,
       orders: {},
     });
   });

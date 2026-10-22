@@ -67,6 +67,7 @@ describe("toSnapshotInfo", () => {
   const meta: SnapshotMeta = {
     asOf: "2026-10-12T12:00:00.000Z",
     orderCount: 9,
+    oldestCreatedAt: "2026-09-22T10:00:00+01:00",
   };
 
   it("is stale with a 9-hour age label", () => {
@@ -75,6 +76,7 @@ describe("toSnapshotInfo", () => {
     expect(info.asOf).toBe(meta.asOf);
     expect(info.isStale).toBe(true);
     expect(info.ageLabel).toBe("9 hours");
+    expect(info.oldestPlaced).toBe("22 Sept 2026");
   });
 
   it("is not stale at 1 hour old", () => {

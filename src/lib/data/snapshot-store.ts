@@ -8,6 +8,7 @@ export type SnapshotFile = {
   loadedAt: string;
   sourceFile: string;
   orderCount: number;
+  oldestCreatedAt: string | null;
   orders: Record<string, OrderRecord>;
 };
 
@@ -27,6 +28,7 @@ export async function readSnapshot(
     const parsed = JSON.parse(text) as SnapshotFile & {
       minOrderNumber?: number | null;
       maxOrderNumber?: number | null;
+      oldestCreatedAt?: string | null;
     };
     return {
       version: 1,
@@ -34,6 +36,7 @@ export async function readSnapshot(
       loadedAt: parsed.loadedAt,
       sourceFile: parsed.sourceFile,
       orderCount: parsed.orderCount,
+      oldestCreatedAt: parsed.oldestCreatedAt ?? null,
       orders: parsed.orders,
     };
   } catch (error) {

@@ -44,7 +44,7 @@ Matrixify publishes one CSV into Azure Blob Storage every hour. The app does not
 
 - Sheet: Orders
 - Format: CSV
-- Filter: Created At, relative date, Last 720 hours. "Last 30 days" counts only full days, stops at midnight and misses today.
+- Coverage is defined by the Matrixify export filter, and the app keeps every order the export contains.
 - Columns (required): ID, Name, Tags, Created At, Cancelled At, Line: Type, Line: ID, Line: Title, Line: SKU, Line: Quantity, Line: Current Quantity, Line: Fulfillable Quantity, Line: Properties, Payment: Status, Fulfillment: ID, Fulfillment: Status, Fulfillment: Created At, Fulfillment: Location, Fulfillment: Tracking Company, Fulfillment: Shipment Status
 - Line: Properties is optional at parse time for older files. Only the dropship flag is kept; the rest of the column is discarded at parse time.
 - Payment: Status is optional at parse time for older files. Only the refund state is kept; the raw value is discarded at parse time.
@@ -76,7 +76,7 @@ The SAS expires and must be replaced before then. When it expires, the feed stop
 A refusal never replaces the current snapshot:
 
 - `missing_columns` - required Matrixify columns are absent
-- `no_orders` - nothing left after the 30-day window
+- `no_orders` - coverage is defined by the Matrixify export filter, and the app keeps every order the export contains.
 - `not_newer` - blob Last modified is not later than the snapshot's asOf
 - `too_few_orders` - new order count is under half of the current snapshot
 - `too_large` - blob is over `ingest.maxMegabytes` (not downloaded)

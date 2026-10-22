@@ -36,13 +36,12 @@ export type ParseCounts = {
   distinctIds: number;
   skippedBadName: number;
   nameCollisions: number;
-  windowDropped: number;
   kept: number;
 };
 
 export type ParseReport = {
   orderCount: number;
-  droppedOutsideWindow: number;
+  oldestCreatedAt: string | null;
   skippedBadName: number;
   collidingNames: number;
   unknownShippingTitles: string[];
@@ -144,10 +143,7 @@ function parseRefund(raw: string): RefundState {
   return "none";
 }
 
-export function parseExport(
-  csvText: string,
-  asOfIso: string,
-): ParseExportResult {
+export function parseExport(csvText: string): ParseExportResult {
   const rows = parse(csvText, {
     columns: true,
     bom: true,
@@ -270,10 +266,6 @@ export function parseExport(
     }
   }
 
-  const asOfMs = new Date(asOfIso).getTime();
-  const windowMs = rules.windowDays * 24 * 60 * 60 * 1000;
-  const cutoffMs = asOfMs - windowMs;
-
   const keyed = new Map<string, OrderDraft[]>();
   let skippedBadName = 0;
   for (const draft of drafts.values()) {
@@ -288,7 +280,8 @@ export function parseExport(
   }
 
   const records = new Map<string, OrderRecord>();
-  let droppedOutsideWindow = 0;
+  let oldestCreatedAt: string | null = null;
+  let oldestCreatedMs = Number.POSITIVE_INFINITY;
   let collidingNames = 0;
   const unknownShippingTitles = new Set<string>();
   const unknownLocations = new Set<string>();
@@ -301,9 +294,9 @@ export function parseExport(
 
     const draft = list[0];
     const createdMs = new Date(draft.createdAt).getTime();
-    if (createdMs < cutoffMs) {
-      droppedOutsideWindow += 1;
-      continue;
+    if (createdMs < oldestCreatedMs) {
+      oldestCreatedMs = createdMs;
+      oldestCreatedAt = draft.createdAt;
     }
 
     if (draft.shippingTitle !== null) {
@@ -350,7 +343,6 @@ export function parseExport(
     distinctIds: drafts.size,
     skippedBadName,
     nameCollisions: collidingNames,
-    windowDropped: droppedOutsideWindow,
     kept: records.size,
   };
 
@@ -359,7 +351,7 @@ export function parseExport(
     records,
     report: {
       orderCount: counts.kept,
-      droppedOutsideWindow: counts.windowDropped,
+      oldestCreatedAt,
       skippedBadName: counts.skippedBadName,
       collidingNames: counts.nameCollisions,
       unknownShippingTitles: Array.from(unknownShippingTitles).sort(),

@@ -112,6 +112,7 @@ describe("startBlobPoller", () => {
         loadedAt: "2026-10-13T12:00:00.000Z",
         sourceFile: "order_lookup.csv",
         orderCount: 2,
+        oldestCreatedAt: null,
         orders: {},
       },
       dir,
@@ -228,7 +229,6 @@ describe("startBlobPoller", () => {
         distinctIds: 1,
         skippedBadName: 0,
         nameCollisions: 0,
-        windowDropped: 0,
         kept: 1,
       });
     }
@@ -250,6 +250,7 @@ describe("startBlobPoller", () => {
         loadedAt: "2026-10-12T12:00:00.000Z",
         sourceFile: "order_lookup.csv",
         orderCount: 10,
+        oldestCreatedAt: null,
         orders: {},
       },
       dir,
@@ -290,7 +291,6 @@ describe("startBlobPoller", () => {
         distinctIds: 2,
         skippedBadName: 0,
         nameCollisions: 0,
-        windowDropped: 0,
         kept: 2,
       });
     }
@@ -318,6 +318,7 @@ describe("startBlobPoller", () => {
         loadedAt: "2026-10-12T12:00:00.000Z",
         sourceFile: "order_lookup.csv",
         orderCount: 4,
+        oldestCreatedAt: null,
         orders: {},
       },
       dir,

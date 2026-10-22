@@ -67,6 +67,7 @@ async function seedSnapshot(
       loadedAt: asOf,
       sourceFile: "order_lookup.csv",
       orderCount,
+      oldestCreatedAt: null,
       orders,
     },
     dir,
@@ -217,8 +218,8 @@ describe("ingestExport", () => {
     const text = csvForOrders([
       {
         id: "1",
-        name: "#9903401",
-        created: "2025-01-01 09:00:00 +0100",
+        name: "",
+        created: "2026-10-12 09:00:00 +0100",
       },
     ]);
 

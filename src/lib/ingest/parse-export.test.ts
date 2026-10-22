@@ -10,14 +10,12 @@ const fixturePath = path.join(
   "export-small.csv",
 );
 
-const asOf = "2026-10-13T18:00:00.000Z";
-
 const header =
   "ID,Name,Tags,Created At,Cancelled At,Line: Type,Line: ID,Line: Title,Line: SKU,Line: Quantity,Line: Current Quantity,Line: Fulfillable Quantity,Fulfillment: ID,Fulfillment: Status,Fulfillment: Created At,Fulfillment: Location,Fulfillment: Tracking Company,Fulfillment: Shipment Status";
 
 describe("parseExport", () => {
   it("reports missing columns by name", () => {
-    const result = parseExport("ID,Name\n1,#1\n", asOf);
+    const result = parseExport("ID,Name\n1,#1\n");
     expect(result.ok).toBe(false);
     if (result.ok) {
       return;
@@ -29,7 +27,7 @@ describe("parseExport", () => {
 
   it("filters tags to configured locations", () => {
     const csv = readFileSync(fixturePath, "utf8");
-    const result = parseExport(csv, asOf);
+    const result = parseExport(csv);
     expect(result.ok).toBe(true);
     if (!result.ok) {
       return;
@@ -40,7 +38,7 @@ describe("parseExport", () => {
 
   it("groups fulfilments with positive quantities", () => {
     const csv = readFileSync(fixturePath, "utf8");
-    const result = parseExport(csv, asOf);
+    const result = parseExport(csv);
     expect(result.ok).toBe(true);
     if (!result.ok) {
       return;
@@ -54,20 +52,25 @@ describe("parseExport", () => {
     ).toBe(true);
   });
 
-  it("drops and counts orders outside the window", () => {
-    const csv = readFileSync(fixturePath, "utf8");
-    const result = parseExport(csv, asOf);
+  it("keeps an old order and records the earliest Created At", () => {
+    const csv = `${header}
+801,#9902200,,2026-08-01 09:00:00 +0100,,Line Item,L1,Item,SKU1,1,1,1,,,,,,
+802,#9902201,,2026-10-12 15:00:00 +0100,,Line Item,L1,Item,SKU2,1,1,1,,,,,,
+`;
+    const result = parseExport(csv);
     expect(result.ok).toBe(true);
     if (!result.ok) {
       return;
     }
-    expect(result.records.has("9902006")).toBe(false);
-    expect(result.report.droppedOutsideWindow).toBe(1);
+    expect(result.records.has("9902200")).toBe(true);
+    expect(result.records.has("9902201")).toBe(true);
+    expect(result.report.oldestCreatedAt).toBe("2026-08-01T09:00:00+01:00");
+    expect(result.report.counts.kept).toBe(2);
   });
 
   it("reports unknown shipping titles and locations", () => {
     const csv = readFileSync(fixturePath, "utf8");
-    const result = parseExport(csv, asOf);
+    const result = parseExport(csv);
     expect(result.ok).toBe(true);
     if (!result.ok) {
       return;
@@ -78,7 +81,7 @@ describe("parseExport", () => {
 
   it("keeps a quoted title with a comma and inch mark intact", () => {
     const csv = readFileSync(fixturePath, "utf8");
-    const result = parseExport(csv, asOf);
+    const result = parseExport(csv);
     expect(result.ok).toBe(true);
     if (!result.ok) {
       return;
@@ -93,7 +96,7 @@ describe("parseExport", () => {
 201,SFP#9902010,,2026-10-12 09:00:00 +0100,,Line Item,L1,Item,SKU1,1,1,1,,,,,,
 201,SFP#9902010,,2026-10-12 09:00:00 +0100,,Shipping Line,,Deliver to Door,,1,1,0,,,,,,
 `;
-    const result = parseExport(csv, asOf);
+    const result = parseExport(csv);
     expect(result.ok).toBe(true);
     if (!result.ok) {
       return;
@@ -110,7 +113,7 @@ describe("parseExport", () => {
 302,SFP#9902020,,2026-10-12 10:00:00 +0100,,Line Item,L1,Item B,SKU2,1,1,1,,,,,,
 302,SFP#9902020,,2026-10-12 10:00:00 +0100,,Shipping Line,,Standard,,1,1,0,,,,,,
 `;
-    const result = parseExport(csv, asOf);
+    const result = parseExport(csv);
     expect(result.ok).toBe(true);
     if (!result.ok) {
       return;
@@ -128,7 +131,7 @@ describe("parseExport", () => {
 403,#9902032,,2026-10-12 11:00:00 +0100,,Line Item,L1,Item,SKU3,1,1,1,,,,,,
 403,#9902032,,2026-10-12 11:00:00 +0100,,Shipping Line,,Deliver to Door,,1,1,0,,,,,,
 `;
-    const result = parseExport(csv, asOf);
+    const result = parseExport(csv);
     expect(result.ok).toBe(true);
     if (!result.ok) {
       return;
@@ -201,7 +204,7 @@ describe("parseExport", () => {
       ].join(","),
       "",
     ].join("\n");
-    const result = parseExport(withProperties, asOf);
+    const result = parseExport(withProperties);
     expect(result.ok).toBe(true);
     if (!result.ok) {
       return;
@@ -223,7 +226,7 @@ describe("parseExport", () => {
 601,#9902041,,2026-10-12 09:00:00 +0100,,Line Item,L2,Item B,SKU2,1,1,1,,,,,,
 601,#9902041,,2026-10-12 09:00:00 +0100,,Shipping Line,,Standard,,1,1,0,,,,,,
 `;
-    const result = parseExport(csv, asOf);
+    const result = parseExport(csv);
     expect(result.ok).toBe(true);
     if (!result.ok) {
       return;
@@ -252,7 +255,7 @@ describe("parseExport", () => {
 ${id},#${key},,2026-10-12 09:00:00 +0100,,Line Item,L1,Item,SKU1,1,1,1,,,,,,,${paymentCell}
 ${id},#${key},,2026-10-12 09:00:00 +0100,,Shipping Line,,Standard,,1,1,0,,,,,,,${paymentCell}
 `;
-      const result = parseExport(csv, asOf);
+      const result = parseExport(csv);
       expect(result.ok).toBe(true);
       if (!result.ok) {
         return;
@@ -275,7 +278,7 @@ ${id},#${key},,2026-10-12 09:00:00 +0100,,Shipping Line,,Standard,,1,1,0,,,,,,,$
 802,#9902061,,2026-10-12 10:00:00 +0100,,Line Item,L1,Item B,SKU2,1,1,1,,,,,,
 802,#9902061,,2026-10-12 10:00:00 +0100,,Shipping Line,,Standard,,1,1,0,,,,,,
 `;
-    const result = parseExport(csv, asOf);
+    const result = parseExport(csv);
     expect(result.ok).toBe(true);
     if (!result.ok) {
       return;
@@ -289,7 +292,7 @@ ${id},#${key},,2026-10-12 09:00:00 +0100,,Shipping Line,,Standard,,1,1,0,,,,,,,$
 901,,,2026-10-12 09:00:00 +0100,,Line Item,L1,Item,SKU1,1,1,1,,,,,,
 901,#9902070,,2026-10-12 11:00:00 +0100,,Shipping Line,,Standard,,1,1,0,,,,,,
 `;
-    const result = parseExport(csv, asOf);
+    const result = parseExport(csv);
     expect(result.ok).toBe(true);
     if (!result.ok) {
       return;
@@ -306,7 +309,7 @@ ${id},#${key},,2026-10-12 09:00:00 +0100,,Shipping Line,,Standard,,1,1,0,,,,,,,$
 902,,,2026-10-12 09:00:00 +0100,,Line Item,L1,Item,SKU1,1,1,1,,,,,,
 902,,,2026-10-12 09:00:00 +0100,,Shipping Line,,Standard,,1,1,0,,,,,,
 `;
-    const result = parseExport(csv, asOf);
+    const result = parseExport(csv);
     expect(result.ok).toBe(true);
     if (!result.ok) {
       return;
@@ -314,6 +317,7 @@ ${id},#${key},,2026-10-12 09:00:00 +0100,,Shipping Line,,Standard,,1,1,0,,,,,,,$
     expect(result.records.size).toBe(0);
     expect(result.report.counts.skippedBadName).toBe(1);
     expect(result.report.skippedBadName).toBe(1);
+    expect(result.report.oldestCreatedAt).toBeNull();
   });
 
   it("drops both orders when two ids share a name key", () => {
@@ -321,7 +325,7 @@ ${id},#${key},,2026-10-12 09:00:00 +0100,,Shipping Line,,Standard,,1,1,0,,,,,,,$
 911,#9902090,,2026-10-12 09:00:00 +0100,,Line Item,L1,Item A,SKU1,1,1,1,,,,,,
 912,#9902090,,2026-10-12 10:00:00 +0100,,Line Item,L1,Item B,SKU2,1,1,1,,,,,,
 `;
-    const result = parseExport(csv, asOf);
+    const result = parseExport(csv);
     expect(result.ok).toBe(true);
     if (!result.ok) {
       return;
@@ -337,7 +341,7 @@ ${id},#${key},,2026-10-12 09:00:00 +0100,,Shipping Line,,Standard,,1,1,0,,,,,,,$
 921,#9902100,,2026-10-12 09:00:00 +0100,,Shipping Line,,Standard,,1,1,0,,,,,,
 ,#9902101,,2026-10-12 09:00:00 +0100,,Line Item,L1,Item,SKU2,1,1,1,,,,,,
 `;
-    const result = parseExport(csv, asOf);
+    const result = parseExport(csv);
     expect(result.ok).toBe(true);
     if (!result.ok) {
       return;
@@ -354,7 +358,6 @@ ${id},#${key},,2026-10-12 09:00:00 +0100,,Shipping Line,,Standard,,1,1,0,,,,,,,$
       distinctIds: 1,
       skippedBadName: 0,
       nameCollisions: 0,
-      windowDropped: 0,
       kept: 1,
     });
   });

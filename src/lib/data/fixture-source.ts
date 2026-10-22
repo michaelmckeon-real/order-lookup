@@ -22,6 +22,19 @@ for (const order of fixtureOrders) {
   }
 }
 
+function earliestCreatedAt(): string | null {
+  let oldest: string | null = null;
+  let oldestMs = Number.POSITIVE_INFINITY;
+  for (const order of ordersByKey.values()) {
+    const createdMs = new Date(order.createdAt).getTime();
+    if (createdMs < oldestMs) {
+      oldestMs = createdMs;
+      oldest = order.createdAt;
+    }
+  }
+  return oldest;
+}
+
 export const fixtureSource: OrderSource = {
   async getSnapshotMeta(): Promise<SnapshotMeta | null> {
     if (noDataEnabled()) {
@@ -30,6 +43,7 @@ export const fixtureSource: OrderSource = {
     return {
       asOf: fixtureAsOf(new Date()),
       orderCount: 10,
+      oldestCreatedAt: earliestCreatedAt(),
     };
   },
 

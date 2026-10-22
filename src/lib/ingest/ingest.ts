@@ -10,7 +10,6 @@ export type IngestResult =
       result: "loaded";
       orderCount: number;
       previousOrderCount: number | null;
-      droppedOutsideWindow: number;
       unknownShippingTitles: string[];
       unknownLocations: string[];
       counts: ParseCounts;
@@ -27,7 +26,7 @@ export async function ingestExport(input: {
   dataDir?: string;
 }): Promise<IngestResult> {
   const dir = input.dataDir;
-  const parsed = parseExport(input.text, input.asOf);
+  const parsed = parseExport(input.text);
   if (!parsed.ok) {
     return { result: "missing_columns", missing: parsed.missing };
   }
@@ -57,6 +56,7 @@ export async function ingestExport(input: {
     loadedAt: new Date().toISOString(),
     sourceFile: input.sourceFile,
     orderCount: parsed.report.orderCount,
+    oldestCreatedAt: parsed.report.oldestCreatedAt,
     orders,
   };
 
@@ -66,7 +66,6 @@ export async function ingestExport(input: {
     result: "loaded",
     orderCount: parsed.report.orderCount,
     previousOrderCount: current?.orderCount ?? null,
-    droppedOutsideWindow: parsed.report.droppedOutsideWindow,
     unknownShippingTitles: parsed.report.unknownShippingTitles,
     unknownLocations: parsed.report.unknownLocations,
     counts: parsed.report.counts,

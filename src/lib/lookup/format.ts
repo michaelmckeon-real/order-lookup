@@ -2,22 +2,44 @@ import { rules } from "@/lib/config";
 import { getRegionConfig } from "@/lib/region";
 import type { SnapshotInfo, SnapshotMeta } from "@/lib/lookup/types";
 
-export function formatDateTime(iso: string): string {
-  const date = new Date(iso);
-  const parts = new Intl.DateTimeFormat("en-IE", {
+function dateParts(
+  iso: string,
+  options: Intl.DateTimeFormatOptions,
+): Intl.DateTimeFormatPart[] {
+  return new Intl.DateTimeFormat("en-IE", {
     timeZone: getRegionConfig().timeZone,
+    ...options,
+  }).formatToParts(new Date(iso));
+}
+
+function partValue(
+  parts: Intl.DateTimeFormatPart[],
+  type: Intl.DateTimeFormatPartTypes,
+): string {
+  return parts.find((part) => part.type === type)?.value ?? "";
+}
+
+export function formatDateTime(iso: string): string {
+  const parts = dateParts(iso, {
     day: "numeric",
     month: "short",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
-  }).formatToParts(date);
+  });
 
-  const valueOf = (type: Intl.DateTimeFormatPartTypes): string =>
-    parts.find((part) => part.type === type)?.value ?? "";
+  return `${partValue(parts, "day")} ${partValue(parts, "month")} ${partValue(parts, "year")}, ${partValue(parts, "hour")}:${partValue(parts, "minute")}`;
+}
 
-  return `${valueOf("day")} ${valueOf("month")} ${valueOf("year")}, ${valueOf("hour")}:${valueOf("minute")}`;
+export function formatPlacedDate(iso: string): string {
+  const parts = dateParts(iso, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+
+  return `${partValue(parts, "day")} ${partValue(parts, "month")} ${partValue(parts, "year")}`;
 }
 
 export function formatAge(hours: number): string {
@@ -59,7 +81,10 @@ export function toSnapshotInfo(meta: SnapshotMeta, now: Date): SnapshotInfo {
     asOfLabel: formatDateTime(meta.asOf),
     ageLabel: formatAge(ageHours),
     isStale: ageHours > rules.staleAfterHours,
-    windowDays: rules.windowDays,
+    oldestPlaced:
+      meta.oldestCreatedAt === null
+        ? null
+        : formatPlacedDate(meta.oldestCreatedAt),
     staleAfterHours: rules.staleAfterHours,
   };
 }

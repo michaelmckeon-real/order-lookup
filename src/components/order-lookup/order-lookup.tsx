@@ -332,11 +332,18 @@ function MissPanel({
     <InfoPanel
       icon={SearchX}
       title={
-        <>
-          No order matches{" "}
-          <span className="font-mono">{result.orderName}</span> in the last{" "}
-          {result.snapshot.windowDays} days.
-        </>
+        result.snapshot.oldestPlaced === null ? (
+          <>
+            No order matches{" "}
+            <span className="font-mono">{result.orderName}</span>.
+          </>
+        ) : (
+          <>
+            No order matches{" "}
+            <span className="font-mono">{result.orderName}</span> among orders
+            placed since {result.snapshot.oldestPlaced}.
+          </>
+        )
       }
       body="Orders placed in the last couple of hours may not have loaded yet. Check the number with the customer."
     />

@@ -29,6 +29,7 @@ export type OrderRecord = {
 export type SnapshotMeta = {
   asOf: string;
   orderCount: number;
+  oldestCreatedAt: string | null;
 };
 
 export type Tone = "neutral" | "progress" | "done" | "cancelled";
@@ -72,7 +73,7 @@ export type SnapshotInfo = {
   asOfLabel: string;
   ageLabel: string;
   isStale: boolean;
-  windowDays: number;
+  oldestPlaced: string | null;
   staleAfterHours: number;
 };
 

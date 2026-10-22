@@ -3,7 +3,7 @@ import {
   writeSnapshot,
   type SnapshotFile,
 } from "@/lib/data/snapshot-store";
-import { parseExport } from "@/lib/ingest/parse-export";
+import { parseExport, type ParseCounts } from "@/lib/ingest/parse-export";
 
 export type IngestResult =
   | {
@@ -13,11 +13,12 @@ export type IngestResult =
       droppedOutsideWindow: number;
       unknownShippingTitles: string[];
       unknownLocations: string[];
+      counts: ParseCounts;
     }
   | { result: "missing_columns"; missing: string[] }
-  | { result: "no_orders" }
-  | { result: "not_newer" }
-  | { result: "too_few_orders" };
+  | { result: "no_orders"; counts: ParseCounts }
+  | { result: "not_newer"; counts: ParseCounts }
+  | { result: "too_few_orders"; counts: ParseCounts };
 
 export async function ingestExport(input: {
   sourceFile: string;
@@ -32,16 +33,16 @@ export async function ingestExport(input: {
   }
 
   if (parsed.report.orderCount === 0) {
-    return { result: "no_orders" };
+    return { result: "no_orders", counts: parsed.report.counts };
   }
 
   const current = await readSnapshot(dir);
   if (current !== null) {
     if (!(new Date(input.asOf).getTime() > new Date(current.asOf).getTime())) {
-      return { result: "not_newer" };
+      return { result: "not_newer", counts: parsed.report.counts };
     }
     if (parsed.report.orderCount < current.orderCount / 2) {
-      return { result: "too_few_orders" };
+      return { result: "too_few_orders", counts: parsed.report.counts };
     }
   }
 
@@ -68,5 +69,6 @@ export async function ingestExport(input: {
     droppedOutsideWindow: parsed.report.droppedOutsideWindow,
     unknownShippingTitles: parsed.report.unknownShippingTitles,
     unknownLocations: parsed.report.unknownLocations,
+    counts: parsed.report.counts,
   };
 }

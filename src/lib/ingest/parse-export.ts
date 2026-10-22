@@ -30,6 +30,16 @@ const REQUIRED_HEADERS = [
   "Fulfillment: Shipment Status",
 ] as const;
 
+export type ParseCounts = {
+  rows: number;
+  emptyIdRows: number;
+  distinctIds: number;
+  skippedBadName: number;
+  nameCollisions: number;
+  windowDropped: number;
+  kept: number;
+};
+
 export type ParseReport = {
   orderCount: number;
   droppedOutsideWindow: number;
@@ -37,6 +47,7 @@ export type ParseReport = {
   collidingNames: number;
   unknownShippingTitles: string[];
   unknownLocations: string[];
+  counts: ParseCounts;
 };
 
 export type ParseExportResult =
@@ -164,10 +175,12 @@ export function parseExport(
   const hasPaymentStatus = headerSet.has("Payment: Status");
 
   const drafts = new Map<string, OrderDraft>();
+  let emptyIdRows = 0;
 
   for (const row of rows) {
     const id = cell(row, "ID");
     if (id.length === 0) {
+      emptyIdRows += 1;
       continue;
     }
 
@@ -188,6 +201,11 @@ export function parseExport(
         fulfillments: new Map(),
       };
       drafts.set(id, draft);
+    } else if (draft.name.length === 0) {
+      const name = cell(row, "Name");
+      if (name.length > 0) {
+        draft.name = name;
+      }
     }
 
     const lineType = cell(row, "Line: Type");
@@ -326,16 +344,27 @@ export function parseExport(
     });
   }
 
+  const counts: ParseCounts = {
+    rows: rows.length,
+    emptyIdRows,
+    distinctIds: drafts.size,
+    skippedBadName,
+    nameCollisions: collidingNames,
+    windowDropped: droppedOutsideWindow,
+    kept: records.size,
+  };
+
   return {
     ok: true,
     records,
     report: {
-      orderCount: records.size,
-      droppedOutsideWindow,
-      skippedBadName,
-      collidingNames,
+      orderCount: counts.kept,
+      droppedOutsideWindow: counts.windowDropped,
+      skippedBadName: counts.skippedBadName,
+      collidingNames: counts.nameCollisions,
       unknownShippingTitles: Array.from(unknownShippingTitles).sort(),
       unknownLocations: Array.from(unknownLocations).sort(),
+      counts,
     },
   };
 }

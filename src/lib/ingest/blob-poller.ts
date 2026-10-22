@@ -3,6 +3,7 @@ import { BlobClient } from "@azure/storage-blob";
 import { rules } from "@/lib/config";
 import { readSnapshot } from "@/lib/data/snapshot-store";
 import { ingestExport } from "@/lib/ingest/ingest";
+import type { ParseCounts } from "@/lib/ingest/parse-export";
 
 export type BlobProperties = {
   lastModified: Date;
@@ -45,14 +46,16 @@ function logIngest(entry: {
   result: LogResult;
   orders: number | null;
   asOf: string | null;
+  counts: ParseCounts | null;
   error?: string;
 }): void {
-  const line: Record<string, string | number | null> = {
+  const line: Record<string, string | number | null | ParseCounts> = {
     event: "ingest",
     time: new Date().toISOString(),
     result: entry.result,
     orders: entry.orders,
     asOf: entry.asOf,
+    counts: entry.counts,
   };
   if (entry.error !== undefined) {
     line.error = entry.error;
@@ -218,6 +221,7 @@ export function startBlobPoller(
           result: "too_large",
           orders: null,
           asOf: asOfIso,
+          counts: null,
         });
         return;
       }
@@ -236,6 +240,7 @@ export function startBlobPoller(
           result: "loaded",
           orders: outcome.orderCount,
           asOf: asOfIso,
+          counts: outcome.counts,
         });
         return;
       }
@@ -245,12 +250,14 @@ export function startBlobPoller(
         result: outcome.result,
         orders: null,
         asOf: asOfIso,
+        counts: outcome.result === "missing_columns" ? null : outcome.counts,
       });
     } catch (error) {
       logIngest({
         result: "error",
         orders: null,
         asOf: null,
+        counts: null,
         error: formatPollerError(error),
       });
     } finally {

@@ -177,6 +177,64 @@ describe("startBlobPoller", () => {
     handle?.stop();
   });
 
+  it("logs integer drop counts and not the order name", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "order-lookup-"));
+    tempDirs.push(dir);
+    process.env.DATA_DIR = dir;
+    process.env.ORDER_BLOB_ACCOUNT = "acct";
+    process.env.ORDER_BLOB_CONTAINER = "cont";
+    process.env.ORDER_BLOB_NAME = "order_lookup.csv";
+
+    const orderName = "#9902110";
+    const csv = `${header}
+931,${orderName},,2026-10-12 09:00:00 +0100,,Line Item,L1,Item,SKU1,1,1,1,,,,,,
+931,${orderName},,2026-10-12 09:00:00 +0100,,Shipping Line,,Standard,,1,1,0,,,,,,
+`;
+    const source: BlobSource = {
+      async getProperties() {
+        return {
+          lastModified: new Date("2026-10-13T15:00:00.000Z"),
+          etag: "etag-counts",
+          contentLength: 120,
+        };
+      },
+      async download() {
+        return Buffer.from(csv);
+      },
+    };
+
+    const clock = createClock();
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    const handle = startBlobPoller(source, clock);
+    await vi.waitFor(async () => {
+      const text = await readFile(snapshotPath(dir), "utf8");
+      expect(JSON.parse(text).orderCount).toBe(1);
+    });
+
+    const ingestLine = loggedLines(info).find(
+      (line) =>
+        line.includes('"event":"ingest"') && line.includes('"result":"loaded"'),
+    );
+    expect(ingestLine).toBeDefined();
+    if (ingestLine !== undefined) {
+      expect(ingestLine).not.toContain(orderName);
+      expect(ingestLine).not.toContain("9902110");
+      const parsed = JSON.parse(ingestLine) as {
+        counts: Record<string, number> | null;
+      };
+      expect(parsed.counts).toEqual({
+        rows: 2,
+        emptyIdRows: 0,
+        distinctIds: 1,
+        skippedBadName: 0,
+        nameCollisions: 0,
+        windowDropped: 0,
+        kept: 1,
+      });
+    }
+    handle?.stop();
+  });
+
   it("refuses a short file once and does not download that etag again", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "order-lookup-"));
     tempDirs.push(dir);
@@ -211,11 +269,31 @@ describe("startBlobPoller", () => {
     };
 
     const clock = createClock();
-    vi.spyOn(console, "info").mockImplementation(() => {});
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
     const handle = startBlobPoller(source, clock);
     await vi.waitFor(() => {
       expect(download).toHaveBeenCalledTimes(1);
     });
+    const refused = loggedLines(info).find((line) =>
+      line.includes('"result":"too_few_orders"'),
+    );
+    expect(refused).toBeDefined();
+    if (refused !== undefined) {
+      const parsed = JSON.parse(refused) as {
+        orders: number | null;
+        counts: { kept: number; rows: number } | null;
+      };
+      expect(parsed.orders).toBeNull();
+      expect(parsed.counts).toEqual({
+        rows: 4,
+        emptyIdRows: 0,
+        distinctIds: 2,
+        skippedBadName: 0,
+        nameCollisions: 0,
+        windowDropped: 0,
+        kept: 2,
+      });
+    }
     expect(await readFile(snapshotPath(dir), "utf8")).toBe(before);
 
     clock.advance();

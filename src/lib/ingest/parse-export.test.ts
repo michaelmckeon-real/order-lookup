@@ -283,4 +283,79 @@ ${id},#${key},,2026-10-12 09:00:00 +0100,,Shipping Line,,Standard,,1,1,0,,,,,,,$
     expect(result.records.get("9902060")?.refund).toBe("none");
     expect(result.records.get("9902061")?.refund).toBe("none");
   });
+
+  it("takes the name from the first row of the order that has one", () => {
+    const csv = `${header}
+901,,,2026-10-12 09:00:00 +0100,,Line Item,L1,Item,SKU1,1,1,1,,,,,,
+901,#9902070,,2026-10-12 11:00:00 +0100,,Shipping Line,,Standard,,1,1,0,,,,,,
+`;
+    const result = parseExport(csv, asOf);
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    const order = result.records.get("9902070");
+    expect(order?.name).toBe("#9902070");
+    expect(order?.createdAt).toBe("2026-10-12T09:00:00+01:00");
+    expect(result.report.counts.kept).toBe(1);
+    expect(result.report.orderCount).toBe(result.report.counts.kept);
+  });
+
+  it("drops an order whose rows all have a blank name", () => {
+    const csv = `${header}
+902,,,2026-10-12 09:00:00 +0100,,Line Item,L1,Item,SKU1,1,1,1,,,,,,
+902,,,2026-10-12 09:00:00 +0100,,Shipping Line,,Standard,,1,1,0,,,,,,
+`;
+    const result = parseExport(csv, asOf);
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    expect(result.records.size).toBe(0);
+    expect(result.report.counts.skippedBadName).toBe(1);
+    expect(result.report.skippedBadName).toBe(1);
+  });
+
+  it("drops both orders when two ids share a name key", () => {
+    const csv = `${header}
+911,#9902090,,2026-10-12 09:00:00 +0100,,Line Item,L1,Item A,SKU1,1,1,1,,,,,,
+912,#9902090,,2026-10-12 10:00:00 +0100,,Line Item,L1,Item B,SKU2,1,1,1,,,,,,
+`;
+    const result = parseExport(csv, asOf);
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    expect(result.records.has("9902090")).toBe(false);
+    expect(result.report.counts.nameCollisions).toBe(2);
+    expect(result.report.counts.kept).toBe(0);
+  });
+
+  it("balances row counts with orders written", () => {
+    const csv = `${header}
+921,#9902100,,2026-10-12 09:00:00 +0100,,Line Item,L1,Item,SKU1,1,1,1,,,,,,
+921,#9902100,,2026-10-12 09:00:00 +0100,,Shipping Line,,Standard,,1,1,0,,,,,,
+,#9902101,,2026-10-12 09:00:00 +0100,,Line Item,L1,Item,SKU2,1,1,1,,,,,,
+`;
+    const result = parseExport(csv, asOf);
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    const rowsWithId = 2;
+    expect(result.report.counts.kept).toBe(result.records.size);
+    expect(result.report.counts.kept).toBe(result.report.orderCount);
+    expect(result.report.counts.rows).toBe(
+      result.report.counts.emptyIdRows + rowsWithId,
+    );
+    expect(result.report.counts).toEqual({
+      rows: 3,
+      emptyIdRows: 1,
+      distinctIds: 1,
+      skippedBadName: 0,
+      nameCollisions: 0,
+      windowDropped: 0,
+      kept: 1,
+    });
+  });
 });

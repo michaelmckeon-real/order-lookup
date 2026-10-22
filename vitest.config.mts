@@ -5,6 +5,9 @@ export default defineConfig({
   plugins: [tsconfigPaths()],
   test: {
     environment: "node",
+    env: {
+      ORDER_REGION: "IE",
+    },
     include: ["src/**/*.test.ts"],
   },
 });

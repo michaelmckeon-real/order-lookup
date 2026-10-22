@@ -92,6 +92,7 @@ With the app running locally:
 Optional environment variables:
 
 - `LOOKUP_BASE_URL` - base URL for `scripts/lookup.mjs` (default `http://localhost:3000`)
+- `ORDER_REGION` - `IE` or `UK`. It drives the region name, the browser tab title and the time zone.
 - `ORDER_SOURCE` - `fixtures` or `snapshot`. Defaults to `fixtures` outside production and `snapshot` in production. Production refuses `fixtures`.
 - `FIXTURE_DATA_AGE_HOURS` - age of the fixture snapshot clock (default `1`)
 - `FIXTURE_NO_DATA=1` - fixture source reports no data

@@ -1,10 +1,11 @@
 import { rules } from "@/lib/config";
+import { getRegionConfig } from "@/lib/region";
 import type { SnapshotInfo, SnapshotMeta } from "@/lib/lookup/types";
 
 export function formatDateTime(iso: string): string {
   const date = new Date(iso);
   const parts = new Intl.DateTimeFormat("en-IE", {
-    timeZone: rules.timeZone,
+    timeZone: getRegionConfig().timeZone,
     day: "numeric",
     month: "short",
     year: "numeric",
